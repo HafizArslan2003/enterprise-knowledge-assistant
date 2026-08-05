@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from backend.app.api.health import router as health_router
 from backend.app.core.config import settings
 from backend.app.database.database import create_tables
+from backend.app.api.auth import router as auth_router
 
 
 @asynccontextmanager
@@ -29,3 +30,5 @@ def root():
         "status": "running",
         "message": "Enterprise Knowledge Assistant API",
     }
+
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
