@@ -140,8 +140,8 @@ enterprise-knowledge-assistant/
 
 - [x] Project Planning
 - [x] Repository Created
-- [ ] Backend Setup
-- [ ] FastAPI
+- [X] Backend Setup
+- [X] FastAPI
 - [ ] OpenAI Integration
 - [ ] File Upload
 - [ ] Document Processing
