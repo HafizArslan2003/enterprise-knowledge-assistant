@@ -9,14 +9,13 @@ from backend.app.models.user import User
 from backend.app.models.document import Document, DocumentChunk
 from backend.app.schemas.document import DocumentResponse
 from backend.app.core.chunking import chunk_text
-
-# ---> NEW: Import the embedding service
 from backend.app.services.embedding import get_embedding
 
 router = APIRouter()
 
 UPLOAD_DIR = "storage/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 
 @router.post("/upload", response_model=DocumentResponse)
 def upload_document(
@@ -28,19 +27,16 @@ def upload_document(
         raise HTTPException(status_code=400, detail="Only PDF files are supported right now")
 
     try:
-        # 1. Save the file to disk
         filepath = os.path.join(UPLOAD_DIR, file.filename)
         with open(filepath, "wb") as f:
             f.write(file.file.read())
 
-        # 2. Extract text per page
         reader = PdfReader(filepath)
         full_text_by_page = []
         for page_num, page in enumerate(reader.pages, start=1):
             text = page.extract_text() or ""
             full_text_by_page.append((page_num, text))
 
-        # 3. Create the Document record
         new_document = Document(
             filename=file.filename,
             filepath=filepath,
@@ -50,21 +46,17 @@ def upload_document(
         db.commit()
         db.refresh(new_document)
 
-        # 4. Chunk each page's text and store chunks with embeddings
         chunk_index = 0
         for page_num, page_text in full_text_by_page:
             page_chunks = chunk_text(page_text)
-            
             for c in page_chunks:
-                # ---> NEW: Generate embedding for this specific chunk
                 vector = get_embedding(c)
-                
                 db_chunk = DocumentChunk(
                     document_id=new_document.id,
                     text=c,
                     page_number=page_num,
                     chunk_index=chunk_index,
-                    embedding=vector, # ---> NEW: Save the vector to PostgreSQL
+                    embedding=vector,
                 )
                 db.add(db_chunk)
                 chunk_index += 1

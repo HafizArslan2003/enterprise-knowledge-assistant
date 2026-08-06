@@ -1,0 +1,57 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from backend.app.database.dependencies import get_db
+from backend.app.api.auth import get_current_user
+from backend.app.models.user import User
+from backend.app.models.chat import ChatSession, ChatMessage
+from backend.app.schemas.session import SessionCreateResponse, SessionDetailResponse, FeedbackRequest
+
+router = APIRouter()
+
+
+@router.post("/", response_model=SessionCreateResponse)
+def create_session(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new_session = ChatSession(user_id=current_user.id)
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return new_session
+
+
+@router.get("/{session_id}", response_model=SessionDetailResponse)
+def get_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@router.post("/messages/{message_id}/feedback")
+def submit_feedback(
+    message_id: int,
+    request: FeedbackRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    message = db.query(ChatMessage).filter(ChatMessage.id == message_id).first()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if request.feedback not in (1, -1):
+        raise HTTPException(status_code=400, detail="feedback must be 1 or -1")
+
+    message.feedback = request.feedback
+    db.commit()
+    return {"status": "feedback recorded"}
