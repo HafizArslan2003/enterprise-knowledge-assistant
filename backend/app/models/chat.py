@@ -24,6 +24,7 @@ class ChatMessage(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    feedback = Column(Integer, nullable=True)  # 1 = thumbs up, -1 = thumbs down, null = no feedback yet
+    feedback = Column(Integer, nullable=True) # 1 = thumbs up, -1 = thumbs down, null = no feedback yet
+    source_document_ids = Column(String, nullable=True)  # comma-separated document IDs used for this answer
 
     session = relationship("ChatSession", back_populates="messages")

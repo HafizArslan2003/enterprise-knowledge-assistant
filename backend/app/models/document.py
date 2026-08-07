@@ -11,6 +11,8 @@ class Document(Base):
     filepath = Column(String, nullable=False)
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     uploaded_at = Column(DateTime, default=datetime.utcnow)
+    access_count = Column(Integer, default=0, nullable=False)
+    feedback_score = Column(Integer, default=0, nullable=False)
     chunks = relationship("DocumentChunk", back_populates="document")
 
 

@@ -5,14 +5,32 @@ from backend.app.services.embedding import get_embedding
 
 def search_documents(db: Session, query: str, top_k: int = 4) -> list[DocumentChunk]:
     """
-    Embeds the query and returns the top_k most similar chunks from the database.
+    Embeds the query, fetches a larger candidate pool by similarity,
+    then re-ranks combining similarity rank with each document's feedback_score.
     """
     query_vector = get_embedding(query)
 
-    results = (
+    # Fetch more candidates than we need, so feedback can meaningfully re-rank them
+    candidate_pool_size = top_k * 3
+    candidates = (
         db.query(DocumentChunk)
         .order_by(DocumentChunk.embedding.cosine_distance(query_vector))
-        .limit(top_k)
+        .limit(candidate_pool_size)
         .all()
     )
-    return results
+
+    if not candidates:
+        return []
+
+    # Assign each candidate a similarity rank score (best match = highest score)
+    # then combine it with the document's feedback_score.
+    scored = []
+    for rank, chunk in enumerate(candidates):
+        similarity_score = candidate_pool_size - rank  # higher rank position = higher score
+        feedback_score = chunk.document.feedback_score or 0
+        combined_score = similarity_score + (feedback_score * 2)  # feedback weighted x2
+        scored.append((combined_score, chunk))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    return [chunk for _, chunk in scored[:top_k]]

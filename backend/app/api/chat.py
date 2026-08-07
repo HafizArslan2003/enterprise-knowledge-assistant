@@ -29,7 +29,12 @@ def ask_question(
             if not session:
                 raise HTTPException(status_code=404, detail="Session not found")
         else:
-            session = ChatSession(user_id=current_user.id)
+            # Auto-generate a short title from the first question
+            title = request.question.strip()
+            if len(title) > 50:
+                title = title[:50].rsplit(" ", 1)[0] + "..."
+
+            session = ChatSession(user_id=current_user.id, title=title)
             db.add(session)
             db.commit()
             db.refresh(session)
@@ -54,9 +59,12 @@ def ask_question(
         initial = get_initial_response(request.question)
         message = initial.choices[0].message
 
+        source_doc_ids_str = None
+
         if not message.tool_calls:
             answer = message.content
             sources = []
+        
         else:
             similar_chunks = search_documents(db, request.question)
             if not similar_chunks:
@@ -79,8 +87,25 @@ def ask_question(
                         seen.add(key)
                         sources.append(s)
 
-        # 5. Save the assistant's answer
-        assistant_message = ChatMessage(session_id=session.id, role="assistant", content=answer)
+                # Track usage analytics: increment access_count for each unique document used
+                seen_doc_ids = set()
+                for chunk in similar_chunks:
+                    if chunk.document_id not in seen_doc_ids:
+                        chunk.document.access_count = (chunk.document.access_count or 0) + 1
+                        seen_doc_ids.add(chunk.document_id)
+
+                source_doc_ids_str = ",".join(str(doc_id) for doc_id in seen_doc_ids)       
+                        
+
+       
+        
+        # 5. Save the assistant's answer, including which documents it was grounded in
+        assistant_message = ChatMessage(
+            session_id=session.id,
+            role="assistant",
+            content=answer,
+            source_document_ids=source_doc_ids_str,
+        )
         db.add(assistant_message)
         db.commit()
 

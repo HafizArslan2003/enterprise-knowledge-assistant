@@ -1,7 +1,6 @@
 import os
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
-from pypdf import PdfReader
 
 from backend.app.database.dependencies import get_db
 from backend.app.api.auth import get_current_user
@@ -10,11 +9,14 @@ from backend.app.models.document import Document, DocumentChunk
 from backend.app.schemas.document import DocumentResponse
 from backend.app.core.chunking import chunk_text
 from backend.app.services.embedding import get_embedding
+from backend.app.services.extraction import extract_text_by_page
 
 router = APIRouter()
 
 UPLOAD_DIR = "storage/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+ALLOWED_EXTENSIONS = (".pdf", ".docx", ".xlsx")
 
 
 @router.post("/upload", response_model=DocumentResponse)
@@ -23,19 +25,18 @@ def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported right now")
+    if not file.filename.lower().endswith(ALLOWED_EXTENSIONS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
 
     try:
         filepath = os.path.join(UPLOAD_DIR, file.filename)
         with open(filepath, "wb") as f:
             f.write(file.file.read())
 
-        reader = PdfReader(filepath)
-        full_text_by_page = []
-        for page_num, page in enumerate(reader.pages, start=1):
-            text = page.extract_text() or ""
-            full_text_by_page.append((page_num, text))
+        full_text_by_page = extract_text_by_page(filepath, file.filename)
 
         new_document = Document(
             filename=file.filename,

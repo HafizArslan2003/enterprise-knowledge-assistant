@@ -5,6 +5,7 @@ from backend.app.database.dependencies import get_db
 from backend.app.api.auth import get_current_user
 from backend.app.models.user import User
 from backend.app.models.chat import ChatSession, ChatMessage
+from backend.app.models.document import Document
 from backend.app.schemas.session import SessionCreateResponse, SessionDetailResponse, FeedbackRequest
 
 router = APIRouter()
@@ -21,6 +22,18 @@ def create_session(
     db.refresh(new_session)
     return new_session
 
+@router.get("/", response_model=list[SessionCreateResponse])
+def list_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    sessions = (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.created_at.desc())
+        .all()
+    )
+    return sessions
 
 @router.get("/{session_id}", response_model=SessionDetailResponse)
 def get_session(
@@ -52,6 +65,21 @@ def submit_feedback(
     if request.feedback not in (1, -1):
         raise HTTPException(status_code=400, detail="feedback must be 1 or -1")
 
+    if message.feedback and message.source_document_ids:
+        doc_ids = [int(x) for x in message.source_document_ids.split(",") if x]
+        for doc_id in doc_ids:
+            doc = db.query(Document).filter(Document.id == doc_id).first()
+            if doc:
+                doc.feedback_score -= message.feedback
+
     message.feedback = request.feedback
+
+    if message.source_document_ids:
+        doc_ids = [int(x) for x in message.source_document_ids.split(",") if x]
+        for doc_id in doc_ids:
+            doc = db.query(Document).filter(Document.id == doc_id).first()
+            if doc:
+                doc.feedback_score += request.feedback
+
     db.commit()
     return {"status": "feedback recorded"}
