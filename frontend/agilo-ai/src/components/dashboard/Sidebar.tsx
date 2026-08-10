@@ -8,7 +8,8 @@ import {
   ChevronRight,
   Settings,
   ShieldCheck,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -19,6 +20,8 @@ interface SidebarProps {
   onNewChat: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  isLoadingSessions?: boolean;
+  currentUsername?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,12 +31,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   isCollapsed,
   onToggleCollapse,
+  isLoadingSessions,
+  currentUsername,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredConversations = conversations.filter(c =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const initials = currentUsername
+    ? currentUsername.slice(0, 2).toUpperCase()
+    : 'HI';
 
   return (
     <motion.aside
@@ -45,7 +54,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Top Header & New Chat */}
       <div className="p-4 flex flex-col gap-4">
-        {/* Logo & Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#38BDF8] flex items-center justify-center shrink-0 shadow-lg shadow-[#2563EB]/40">
@@ -77,7 +85,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
-        {/* New Chat Button */}
         <button
           onClick={onNewChat}
           style={{ background: 'linear-gradient(to right, #2563EB, #38BDF8)' }}
@@ -89,7 +96,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && <span>New Chat</span>}
         </button>
 
-        {/* Search input */}
         {!isCollapsed && (
           <div className="relative mt-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -100,9 +106,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               placeholder="Search conversations..."
               className="w-full pl-9 pr-8 py-2 bg-white/10 border border-white/15 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#38BDF8] transition-all"
             />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] bg-white/15 px-1.5 py-0.5 rounded text-slate-300 font-mono">
-              ⌘K
-            </span>
           </div>
         )}
       </div>
@@ -110,8 +113,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Recent Conversations List */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {!isCollapsed && (
-          <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Recent Conversations
+          <div className="px-3 py-1 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Recent Conversations
+            </span>
+            {isLoadingSessions && <Loader2 className="w-3 h-3 text-slate-400 animate-spin" />}
+          </div>
+        )}
+
+        {filteredConversations.length === 0 && !isLoadingSessions && !isCollapsed && (
+          <div className="px-3 py-6 text-center">
+            <span className="text-[11px] text-slate-500">No conversations yet</span>
           </div>
         )}
 
@@ -146,13 +158,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#38BDF8] to-[#2563EB] flex items-center justify-center font-extrabold text-white text-xs border border-white/30 shrink-0 shadow-md">
-              HI
+              {initials}
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">Hafiz Ibrahim</span>
+                <span className="text-xs font-bold text-white truncate">
+                  {currentUsername || 'Loading...'}
+                </span>
                 <span className="text-[10px] text-slate-300 flex items-center gap-1 font-medium">
-                  <ShieldCheck className="w-3 h-3 text-[#38BDF8] inline" /> Admin / CTO
+                  <ShieldCheck className="w-3 h-3 text-[#38BDF8] inline" /> Member
                 </span>
               </div>
             )}

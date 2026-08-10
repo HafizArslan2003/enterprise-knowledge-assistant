@@ -2,19 +2,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { ChatInterface } from './ChatInterface';
 import { SourceDrawer } from './SourceDrawer';
+import { AnalyticsPage } from './AnalyticsPage';
 import {
   INITIAL_CONVERSATIONS,
   processUserQuery
 } from '../../services/ragEngine';
 import {
   createChatSession,
-  getChatHistory,
   getUsageStats,
   listDocuments,
   uploadDocument,
+  listSessions,
+  getSessionDetail,
+  getCurrentUser,
   type ChatHistorySession,
   type DocumentUploadResponse,
-  type UsageSummary
+  type UsageSummary,
+  type UserResponse
 } from '../../services/api';
 import type {
   ConversationSession,
@@ -33,7 +37,8 @@ import {
   BookOpen,
   History,
   Star,
-  Upload
+  Upload,
+  BarChart3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -64,19 +69,21 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [activeSessionId, setActiveSessionId] = useState<string>(() => loadStoredConversations()[0]?.id ?? 'session-1');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isChatActive, setIsChatActive] = useState<boolean>(false);
-  
+
   const [selectedSource, setSelectedSource] = useState<SourceCitation | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [currentToolStep, setCurrentToolStep] = useState<string>('');
-  
+
   const [heroPrompt, setHeroPrompt] = useState<string>('');
   const [activeSessionIdNumber, setActiveSessionIdNumber] = useState<number | null>(null);
   const [historySessions, setHistorySessions] = useState<ChatHistorySession[]>([]);
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<DocumentUploadResponse[]>([]);
   const [usageStats, setUsageStats] = useState<UsageSummary | null>(null);
-  const [activityView, setActivityView] = useState<'home' | 'history' | 'documents'>('home');
+  const [activityView, setActivityView] = useState<'home' | 'history' | 'documents' | 'analytics'>('home');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
 
   const activeSession = conversations.find(c => c.id === activeSessionId) || conversations[0];
 
@@ -169,30 +176,61 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     setIsChatActive(false);
   };
 
+  // Fetches the lightweight session list for the sidebar
   const refreshHistory = async () => {
     const token = localStorage.getItem('agilo-access-token') || undefined;
+    setIsLoadingSessions(true);
     try {
-      const sessions = await getChatHistory(token);
-      setHistorySessions(sessions);
-      const mapped = sessions.map((session) => ({
-        id: `server-session-${session.id}`,
-        title: session.title || 'Conversation',
-        updatedAt: new Date(session.created_at).toLocaleDateString(),
-        messages: session.messages.map((message) => ({
-          id: `msg-${message.id}`,
-          sender: (message.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
-          content: message.content,
-          timestamp: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const sessions = await listSessions(token);
+
+      setHistorySessions(
+        sessions.map((s) => ({
+          id: s.id,
+          title: s.title || 'Untitled conversation',
+          created_at: s.created_at,
+          messages: []
         }))
+      );
+
+      const mapped: ConversationSession[] = sessions.map((session) => ({
+        id: `server-session-${session.id}`,
+        title: session.title || 'Untitled conversation',
+        updatedAt: new Date(session.created_at).toLocaleDateString(),
+        messages: []
       }));
-      if (mapped.length > 0) {
-        setConversations((prev) => {
-          const existing = prev.filter((item) => !item.id.startsWith('server-session-'));
-          return [...mapped, ...existing];
-        });
-      }
+
+      setConversations((prev) => {
+        // Keep any purely-local conversations that haven't been synced to the server yet
+        const localOnly = prev.filter(
+          (item) => !item.id.startsWith('server-session-') && item.messages.length === 0
+        );
+        return [...mapped, ...localOnly];
+      });
     } catch (error) {
-      console.error('Unable to load history', error);
+      console.error('Unable to load sessions', error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  // Lazy-loads full message history for one session, only when the user clicks into it
+  const loadSessionMessages = async (serverSessionId: number, localId: string) => {
+    const token = localStorage.getItem('agilo-access-token') || undefined;
+    try {
+      const detail = await getSessionDetail(serverSessionId, token);
+      const messages: Message[] = detail.messages.map((m) => ({
+        id: `msg-${m.id}`,
+        sender: (m.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: m.content,
+        timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+
+      setConversations((prev) =>
+        prev.map((conv) => (conv.id === localId ? { ...conv, messages } : conv))
+      );
+      setActiveSessionIdNumber(serverSessionId);
+    } catch (error) {
+      console.error('Unable to load session messages', error);
     }
   };
 
@@ -213,6 +251,16 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
       setUsageStats(stats);
     } catch (error) {
       console.error('Unable to load usage stats', error);
+    }
+  };
+
+  const refreshCurrentUser = async () => {
+    const token = localStorage.getItem('agilo-access-token') || undefined;
+    try {
+      const user = await getCurrentUser(token);
+      setCurrentUser(user);
+    } catch (error) {
+      console.error('Unable to load current user', error);
     }
   };
 
@@ -248,6 +296,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     refreshHistory();
     refreshDocuments();
     refreshUsage();
+    refreshCurrentUser();
   }, []);
 
   return (
@@ -264,10 +313,22 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         onSelectSession={(id) => {
           setActiveSessionId(id);
           setIsChatActive(true);
+
+          if (id.startsWith('server-session-')) {
+            const serverIdNum = parseInt(id.replace('server-session-', ''), 10);
+            const conv = conversations.find((c) => c.id === id);
+            if (conv && conv.messages.length === 0) {
+              loadSessionMessages(serverIdNum, id);
+            } else {
+              setActiveSessionIdNumber(serverIdNum);
+            }
+          }
         }}
         onNewChat={handleNewChat}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isLoadingSessions={isLoadingSessions}
+        currentUsername={currentUser?.username}
       />
 
       {/* Main Content Area */}
@@ -295,13 +356,13 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               <Bell className="w-4 h-4" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-agilo-primary rounded-full" />
             </button>
-            
+
             <button
               onClick={onLogout}
               className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-600 text-white font-bold text-xs flex items-center justify-center border border-white/40 shadow-sm"
               title="Sign Out"
             >
-              HI
+              {currentUser?.username ? currentUser.username.slice(0, 2).toUpperCase() : 'HI'}
             </button>
           </div>
         </header>
@@ -320,14 +381,14 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                 <span className="text-xs font-bold uppercase tracking-wider text-agilo-primary bg-agilo-primary/10 border border-agilo-primary/20 px-3 py-1 rounded-full inline-block">
                   Welcome to Agilo AI
                 </span>
-                
+
                 <h1 className="text-5xl lg:text-7xl font-extrabold text-agilo-navy tracking-tight leading-tight">
                   Knowledge, <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-agilo-primary via-agilo-bright to-agilo-deep">
                     at your fingertips.
                   </span>
                 </h1>
-                
+
                 <p className="text-agilo-secondary text-base lg:text-lg max-w-xl">
                   Ask questions, search company knowledge, and get grounded answers with verified document sources.
                 </p>
@@ -396,7 +457,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               </motion.div>
             </div>
 
-            {/* FLOATING STATUS CARDS (Right Overlay from Ref 2) */}
+            {/* FLOATING STATUS CARDS */}
             <div className="absolute top-12 right-12 hidden xl:flex flex-col gap-4 z-20 pointer-events-auto">
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
@@ -450,7 +511,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               </motion.div>
             </div>
 
-            {/* Quick Access & Usage Overview Cards (Bottom Panel) */}
+            {/* Quick Access & Usage Overview Cards */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -460,11 +521,12 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               {/* Quick Access Grid */}
               <div className="glass-card rounded-3xl p-6 border border-agilo-border">
                 <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider mb-4">Quick Access</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  {[ 
+                <div className="grid grid-cols-5 gap-3">
+                  {[
                     { label: uploading ? 'Uploading…' : 'Upload Document', icon: Upload, action: handleUploadClick },
                     { label: 'Knowledge Base', icon: BookOpen, action: () => setActivityView('documents') },
                     { label: 'Chat History', icon: History, action: () => { setActivityView('history'); setIsChatActive(true); } },
+                    { label: 'Analytics', icon: BarChart3, action: () => { setActivityView('analytics'); setIsChatActive(true); } },
                     { label: 'Favorites', icon: Star, action: () => setActivityView('documents') }
                   ].map((item, i) => (
                     <button
@@ -504,7 +566,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                   <div className="w-48 h-16 rounded-2xl bg-slate-50 p-2 border border-agilo-border">
                     <svg viewBox="0 0 100 40" className="w-full h-full text-agilo-primary">
                       <path
-                        d={usageStats ? usageStats.values.map((value, idx) => `${idx === 0 ? 'M' : 'L'} ${idx * 16 + 6} ${40 - value * 6}` ).join(' ') : 'M 6 34 L 22 28 L 38 24 L 54 20 L 70 16 L 86 12 L 94 10'}
+                        d={usageStats ? usageStats.values.map((value, idx) => `${idx === 0 ? 'M' : 'L'} ${idx * 16 + 6} ${40 - value * 6}`).join(' ') : 'M 6 34 L 22 28 L 38 24 L 54 20 L 70 16 L 86 12 L 94 10'}
                         stroke="currentColor"
                         strokeWidth="2.5"
                         fill="none"
@@ -517,7 +579,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           </div>
         ) : (
           /* ACTIVE CHAT VIEW */
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden bg-agilo-bg">
             {activityView === 'history' && (
               <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur">
                 <div className="flex items-center justify-between mb-4">
@@ -526,16 +588,27 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                 </div>
                 <div className="space-y-3 overflow-y-auto max-h-[70vh]">
                   {historySessions.map((session) => (
-                    <button key={session.id} onClick={() => { setActiveSessionId(`server-session-${session.id}`); setIsChatActive(true); setActivityView('home'); }} className="w-full rounded-2xl border border-agilo-border bg-agilo-bg p-4 text-left">
+                    <button
+                      key={session.id}
+                      onClick={() => {
+                        const localId = `server-session-${session.id}`;
+                        setActiveSessionId(localId);
+                        setIsChatActive(true);
+                        setActivityView('home');
+                        loadSessionMessages(session.id, localId);
+                      }}
+                      className="w-full rounded-2xl border border-agilo-border bg-agilo-bg p-4 text-left"
+                    >
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-agilo-navy">{session.title}</span>
                         <span className="text-xs text-agilo-secondary">{new Date(session.created_at).toLocaleDateString()}</span>
                       </div>
-                      <div className="mt-2 text-sm text-agilo-secondary line-clamp-2">{session.messages[0]?.content || 'No messages yet'}</div>
                     </button>
                   ))}
                 </div>
+                
               </div>
+              
             )}
 
             {activityView === 'documents' && (
@@ -554,6 +627,9 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                 </div>
               </div>
             )}
+            {activityView === 'analytics' && (
+  <AnalyticsPage onClose={() => setActivityView('home')} />
+)}
 
             <ChatInterface
               messages={activeSession.messages}
@@ -565,7 +641,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           </div>
         )}
 
-        <footer className="border-t border-agilo-border/60 bg-white/70 backdrop-blur-sm px-6 py-3 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary">
+        <footer className="border-t border-agilo-border/60 bg-white/70 backdrop-blur-sm px-6 py-3 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary shrink-0">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-agilo-success" /> Live connection active</span>
             <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-agilo-primary" /> Documents synced</span>
