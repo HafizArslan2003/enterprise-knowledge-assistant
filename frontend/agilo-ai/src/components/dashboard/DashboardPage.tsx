@@ -64,6 +64,8 @@ const loadStoredConversations = (): ConversationSession[] => {
   }
 };
 
+type ActivityView = 'home' | 'history' | 'documents' | 'analytics';
+
 export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [conversations, setConversations] = useState<ConversationSession[]>(loadStoredConversations);
   const [activeSessionId, setActiveSessionId] = useState<string>(() => loadStoredConversations()[0]?.id ?? 'session-1');
@@ -80,7 +82,12 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<DocumentUploadResponse[]>([]);
   const [usageStats, setUsageStats] = useState<UsageSummary | null>(null);
-  const [activityView, setActivityView] = useState<'home' | 'history' | 'documents' | 'analytics'>('home');
+
+  // IMPORTANT: activityView is now fully independent of isChatActive.
+  // 'home' means "show whatever the normal hero/chat view would show".
+  // Any other value means "show that full-screen panel instead, on top of everything below the header".
+  const [activityView, setActivityView] = useState<ActivityView>('home');
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
@@ -93,6 +100,9 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     if (!isChatActive) {
       setIsChatActive(true);
     }
+    // Sending a message should always bring you back to the chat view,
+    // even if an activity panel happened to be open.
+    setActivityView('home');
 
     const userMsg: Message = {
       id: `msg-user-${Date.now()}`,
@@ -174,9 +184,9 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     setConversations(prev => [newSession, ...prev]);
     setActiveSessionId(newId);
     setIsChatActive(false);
+    setActivityView('home');
   };
 
-  // Fetches the lightweight session list for the sidebar
   const refreshHistory = async () => {
     const token = localStorage.getItem('agilo-access-token') || undefined;
     setIsLoadingSessions(true);
@@ -200,7 +210,6 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
       }));
 
       setConversations((prev) => {
-        // Keep any purely-local conversations that haven't been synced to the server yet
         const localOnly = prev.filter(
           (item) => !item.id.startsWith('server-session-') && item.messages.length === 0
         );
@@ -213,7 +222,6 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     }
   };
 
-  // Lazy-loads full message history for one session, only when the user clicks into it
   const loadSessionMessages = async (serverSessionId: number, localId: string) => {
     const token = localStorage.getItem('agilo-access-token') || undefined;
     try {
@@ -301,10 +309,10 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
   return (
     <div className="h-screen w-full bg-agilo-bg flex overflow-hidden relative font-sans selection:bg-agilo-bright/30">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.12),_transparent_38%)]" />
-      <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(148,163,184,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:30px_30px]" />
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="absolute right-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-white/70 blur-3xl" />
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.1 }} className="absolute bottom-[-6rem] left-[-4rem] h-80 w-80 rounded-full bg-sky-200/40 blur-3xl" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.12),_transparent_38%)] pointer-events-none" />
+      <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(148,163,184,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:30px_30px] pointer-events-none" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="absolute right-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-white/70 blur-3xl pointer-events-none" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.1 }} className="absolute bottom-[-6rem] left-[-4rem] h-80 w-80 rounded-full bg-sky-200/40 blur-3xl pointer-events-none" />
 
       {/* Sidebar */}
       <Sidebar
@@ -313,6 +321,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         onSelectSession={(id) => {
           setActiveSessionId(id);
           setIsChatActive(true);
+          setActivityView('home');
 
           if (id.startsWith('server-session-')) {
             const serverIdNum = parseInt(id.replace('server-session-', ''), 10);
@@ -331,7 +340,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         currentUsername={currentUser?.username}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area — header and footer are ALWAYS rendered here, shrink-0 locked */}
       <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
         <input
           ref={fileInputRef}
@@ -340,8 +349,9 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           className="hidden"
           onChange={handleUpload}
         />
-        {/* Top Header Navbar */}
-        <header className="h-16 px-6 border-b border-agilo-border/60 bg-white/60 backdrop-blur-md flex items-center justify-between z-20">
+
+        {/* Top Header Navbar — shrink-0 so it can NEVER be squeezed by tall content below */}
+        <header className="h-16 shrink-0 px-6 border-b border-agilo-border/60 bg-white/60 backdrop-blur-md flex items-center justify-between z-20">
           <div className="flex items-center gap-3">
             <span className="text-base font-bold text-agilo-navy tracking-tight">Agilo AI</span>
             <span className="w-2 h-2 rounded-full bg-agilo-success animate-pulse" />
@@ -367,270 +377,266 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           </div>
         </header>
 
-        {/* Dynamic Hero vs Chat View */}
-        {!isChatActive ? (
-          /* HERO VIEW */
-          <div className="flex-1 overflow-y-auto p-6 lg:p-12 flex flex-col justify-between relative">
-            <div className="max-w-3xl space-y-6 pt-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="space-y-3"
-              >
-                <span className="text-xs font-bold uppercase tracking-wider text-agilo-primary bg-agilo-primary/10 border border-agilo-primary/20 px-3 py-1 rounded-full inline-block">
-                  Welcome to Agilo AI
-                </span>
-
-                <h1 className="text-5xl lg:text-7xl font-extrabold text-agilo-navy tracking-tight leading-tight">
-                  Knowledge, <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-agilo-primary via-agilo-bright to-agilo-deep">
-                    at your fingertips.
-                  </span>
-                </h1>
-
-                <p className="text-agilo-secondary text-base lg:text-lg max-w-xl">
-                  Ask questions, search company knowledge, and get grounded answers with verified document sources.
-                </p>
-              </motion.div>
-
-              {/* Central Search / Prompt Box */}
-              <motion.div
-                initial={{ opacity: 0, y: 25 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2 }}
-                className="glass-card rounded-3xl p-4 shadow-xl border border-agilo-border max-w-2xl"
-              >
-                <textarea
-                  value={heroPrompt}
-                  onChange={(e) => setHeroPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(heroPrompt);
-                    }
-                  }}
-                  placeholder="Ask anything about your company knowledge..."
-                  rows={2}
-                  className="w-full bg-transparent text-base text-agilo-text placeholder-slate-400 focus:outline-none resize-none px-2 font-sans"
-                />
-
-                <div className="flex items-center justify-between pt-3 border-t border-agilo-border/50">
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-xl hover:bg-agilo-bg text-agilo-secondary hover:text-agilo-primary transition-colors">
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-                  </div>
-
+        {/* Middle content — flex-1 + min-h-0 is critical: it lets THIS area scroll/shrink
+            instead of the header/footer being squeezed by flexbox */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {activityView === 'history' ? (
+            <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-agilo-navy">Conversation History</h3>
+                <button onClick={() => setActivityView('home')} className="text-sm text-agilo-primary font-semibold hover:underline cursor-pointer">Close</button>
+              </div>
+              <div className="space-y-3 overflow-y-auto max-h-[65vh]">
+                {historySessions.length === 0 && (
+                  <p className="text-xs text-agilo-secondary">No conversations yet.</p>
+                )}
+                {historySessions.map((session) => (
                   <button
-                    onClick={() => handleSendMessage(heroPrompt || "What is our company's policy on annual PTO roll-over?")}
-                    className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-sm font-semibold shadow-lg shadow-agilo-primary/30 hover:shadow-xl hover:shadow-agilo-primary/40 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                    key={session.id}
+                    onClick={() => {
+                      const localId = `server-session-${session.id}`;
+                      setActiveSessionId(localId);
+                      setIsChatActive(true);
+                      setActivityView('home');
+                      loadSessionMessages(session.id, localId);
+                    }}
+                    className="w-full rounded-2xl border border-agilo-border bg-agilo-bg p-4 text-left hover:border-agilo-bright transition-colors"
                   >
-                    <span>Send Query</span>
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </motion.div>
-
-              {/* Category preset chips */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
-                className="flex flex-wrap gap-2 pt-2"
-              >
-                {[
-                  { label: "Company Policies", query: "What is our annual leave policy?" },
-                  { label: "HR Documents", query: "What parental leave benefits do we offer?" },
-                  { label: "Project Docs", query: "How does Agilo AI process vector retrieval?" },
-                  { label: "Client Info", query: "What uptime SLA do we guarantee to Enterprise customers?" }
-                ].map((chip, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSendMessage(chip.query)}
-                    className="px-4 py-2 rounded-2xl bg-white/80 hover:bg-white border border-agilo-border hover:border-agilo-bright text-xs font-semibold text-agilo-navy transition-all shadow-sm hover:shadow hover:-translate-y-0.5 flex items-center gap-2"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-agilo-primary" />
-                    <span>{chip.label}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-agilo-navy">{session.title}</span>
+                      <span className="text-xs text-agilo-secondary">{new Date(session.created_at).toLocaleDateString()}</span>
+                    </div>
                   </button>
                 ))}
-              </motion.div>
+              </div>
             </div>
-
-            {/* FLOATING STATUS CARDS */}
-            <div className="absolute top-12 right-12 hidden xl:flex flex-col gap-4 z-20 pointer-events-auto">
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="glass-card rounded-2xl p-4 w-64 border border-agilo-border flex items-center gap-3 shadow-lg"
-              >
-                <div className="w-10 h-10 rounded-xl bg-agilo-bright/20 border border-agilo-bright/40 flex items-center justify-center text-agilo-primary shrink-0">
-                  <Activity className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-agilo-navy block">Online</span>
-                  <span className="text-[10px] text-agilo-success flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-agilo-success" /> AI Assistant is online
-                  </span>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-                className="glass-card rounded-2xl p-4 w-64 border border-agilo-border flex items-center gap-3 shadow-lg"
-              >
-                <div className="w-10 h-10 rounded-xl bg-agilo-primary/20 border border-agilo-primary/40 flex items-center justify-center text-agilo-primary shrink-0">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-agilo-navy block">Knowledge Connected</span>
-                  <span className="text-[10px] text-agilo-success flex items-center gap-1">
-                    ✓ Documents indexed
-                  </span>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                className="glass-card rounded-2xl p-4 w-64 border border-agilo-border flex items-center gap-3 shadow-lg"
-              >
-                <div className="w-10 h-10 rounded-xl bg-agilo-cyan/20 border border-agilo-cyan/40 flex items-center justify-center text-agilo-navy shrink-0">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-agilo-navy block">Agent Ready</span>
-                  <span className="text-[10px] text-agilo-success flex items-center gap-1">
-                    ✓ Tool calling enabled
-                  </span>
-                </div>
-              </motion.div>
+          ) : activityView === 'documents' ? (
+            <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-agilo-navy">Knowledge Base</h3>
+                <button onClick={() => setActivityView('home')} className="text-sm text-agilo-primary font-semibold hover:underline cursor-pointer">Close</button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {documents.length === 0 && (
+                  <p className="text-xs text-agilo-secondary">No documents uploaded yet.</p>
+                )}
+                {documents.map((document) => (
+                  <div key={document.id} className="rounded-2xl border border-agilo-border bg-agilo-bg p-4">
+                    <div className="font-semibold text-agilo-navy">{document.filename}</div>
+                    <div className="mt-2 text-sm text-agilo-secondary">Uploaded {new Date(document.uploaded_at).toLocaleDateString()} • {document.chunk_count} chunks</div>
+                  </div>
+                ))}
+              </div>
             </div>
+          ) : activityView === 'analytics' ? (
+            <div className="flex-1 overflow-y-auto">
+              <AnalyticsPage onClose={() => setActivityView('home')} />
+            </div>
+          ) : !isChatActive ? (
+            /* HERO VIEW */
+            <div className="flex-1 overflow-y-auto p-6 lg:p-12 flex flex-col justify-between relative">
+              <div className="max-w-3xl space-y-6 pt-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="space-y-3"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider text-agilo-primary bg-agilo-primary/10 border border-agilo-primary/20 px-3 py-1 rounded-full inline-block">
+                    Welcome to Agilo AI
+                  </span>
 
-            {/* Quick Access & Usage Overview Cards */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-8 max-w-5xl"
-            >
-              {/* Quick Access Grid */}
-              <div className="glass-card rounded-3xl p-6 border border-agilo-border">
-                <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider mb-4">Quick Access</h3>
-                <div className="grid grid-cols-5 gap-3">
+                  <h1 className="text-5xl lg:text-7xl font-extrabold text-agilo-navy tracking-tight leading-tight">
+                    Knowledge, <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-agilo-primary via-agilo-bright to-agilo-deep">
+                      at your fingertips.
+                    </span>
+                  </h1>
+
+                  <p className="text-agilo-secondary text-base lg:text-lg max-w-xl">
+                    Ask questions, search company knowledge, and get grounded answers with verified document sources.
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 25 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.2 }}
+                  className="glass-card rounded-3xl p-4 shadow-xl border border-agilo-border max-w-2xl"
+                >
+                  <textarea
+                    value={heroPrompt}
+                    onChange={(e) => setHeroPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(heroPrompt);
+                      }
+                    }}
+                    placeholder="Ask anything about your company knowledge..."
+                    rows={2}
+                    className="w-full bg-transparent text-base text-agilo-text placeholder-slate-400 focus:outline-none resize-none px-2 font-sans"
+                  />
+
+                  <div className="flex items-center justify-between pt-3 border-t border-agilo-border/50">
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 rounded-xl hover:bg-agilo-bg text-agilo-secondary hover:text-agilo-primary transition-colors">
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => handleSendMessage(heroPrompt || "What is our company's policy on annual PTO roll-over?")}
+                      className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-sm font-semibold shadow-lg shadow-agilo-primary/30 hover:shadow-xl hover:shadow-agilo-primary/40 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                    >
+                      <span>Send Query</span>
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.3 }}
+                  className="flex flex-wrap gap-2 pt-2"
+                >
                   {[
-                    { label: uploading ? 'Uploading…' : 'Upload Document', icon: Upload, action: handleUploadClick },
-                    { label: 'Knowledge Base', icon: BookOpen, action: () => setActivityView('documents') },
-                    { label: 'Chat History', icon: History, action: () => { setActivityView('history'); setIsChatActive(true); } },
-                    { label: 'Analytics', icon: BarChart3, action: () => { setActivityView('analytics'); setIsChatActive(true); } },
-                    { label: 'Favorites', icon: Star, action: () => setActivityView('documents') }
-                  ].map((item, i) => (
+                    { label: "Company Policies", query: "What is our annual leave policy?" },
+                    { label: "HR Documents", query: "What parental leave benefits do we offer?" },
+                    { label: "Project Docs", query: "How does Agilo AI process vector retrieval?" },
+                    { label: "Client Info", query: "What uptime SLA do we guarantee to Enterprise customers?" }
+                  ].map((chip, idx) => (
                     <button
-                      key={i}
-                      onClick={item.action}
-                      className="p-3 rounded-2xl bg-white border border-agilo-border hover:border-agilo-bright flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-all group shadow-sm"
+                      key={idx}
+                      onClick={() => handleSendMessage(chip.query)}
+                      className="px-4 py-2 rounded-2xl bg-white/80 hover:bg-white border border-agilo-border hover:border-agilo-bright text-xs font-semibold text-agilo-navy transition-all shadow-sm hover:shadow hover:-translate-y-0.5 flex items-center gap-2"
                     >
-                      <item.icon className="w-5 h-5 text-agilo-primary group-hover:scale-110 transition-transform" />
-                      <span className="text-[11px] font-semibold text-agilo-navy text-center leading-tight">
-                        {item.label}
-                      </span>
+                      <Sparkles className="w-3.5 h-3.5 text-agilo-primary" />
+                      <span>{chip.label}</span>
                     </button>
                   ))}
-                </div>
+                </motion.div>
               </div>
 
-              {/* Usage Overview Widget */}
-              <div className="glass-card rounded-3xl p-6 border border-agilo-border flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider">Usage Overview</h3>
-                  <span className="text-[10px] text-agilo-secondary border border-agilo-border px-2 py-0.5 rounded-lg bg-white">
-                    This Week ▾
-                  </span>
-                </div>
-
-                <div className="flex items-end justify-between gap-4">
+              <div className="absolute top-12 right-12 hidden xl:flex flex-col gap-4 z-20 pointer-events-auto">
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                  className="glass-card rounded-2xl p-4 w-64 border border-agilo-border flex items-center gap-3 shadow-lg"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-agilo-bright/20 border border-agilo-bright/40 flex items-center justify-center text-agilo-primary shrink-0">
+                    <Activity className="w-5 h-5" />
+                  </div>
                   <div>
-                    <div className="text-3xl font-extrabold text-agilo-navy tracking-tight">
-                      {usageStats?.automation_rate ?? 0}%
-                    </div>
-                    <span className="text-xs text-agilo-secondary font-medium">Tasks Automated</span>
-                    <div className="text-[11px] font-semibold text-agilo-success flex items-center gap-1 mt-1">
-                      Live from analytics
-                    </div>
+                    <span className="text-xs font-bold text-agilo-navy block">Online</span>
+                    <span className="text-[10px] text-agilo-success flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-agilo-success" /> AI Assistant is online
+                    </span>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                  className="glass-card rounded-2xl p-4 w-64 border border-agilo-border flex items-center gap-3 shadow-lg"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-agilo-primary/20 border border-agilo-primary/40 flex items-center justify-center text-agilo-primary shrink-0">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-agilo-navy block">Knowledge Connected</span>
+                    <span className="text-[10px] text-agilo-success flex items-center gap-1">
+                      ✓ Documents indexed
+                    </span>
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                  className="glass-card rounded-2xl p-4 w-64 border border-agilo-border flex items-center gap-3 shadow-lg"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-agilo-cyan/20 border border-agilo-cyan/40 flex items-center justify-center text-agilo-navy shrink-0">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-agilo-navy block">Agent Ready</span>
+                    <span className="text-[10px] text-agilo-success flex items-center gap-1">
+                      ✓ Tool calling enabled
+                    </span>
+                  </div>
+                </motion.div>
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.4 }}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-8 max-w-5xl"
+              >
+                <div className="glass-card rounded-3xl p-6 border border-agilo-border">
+                  <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider mb-4">Quick Access</h3>
+                  <div className="grid grid-cols-5 gap-3">
+                    {[
+                      { label: uploading ? 'Uploading…' : 'Upload Document', icon: Upload, action: handleUploadClick },
+                      { label: 'Knowledge Base', icon: BookOpen, action: () => setActivityView('documents') },
+                      { label: 'Chat History', icon: History, action: () => setActivityView('history') },
+                      { label: 'Analytics', icon: BarChart3, action: () => setActivityView('analytics') },
+                      { label: 'Favorites', icon: Star, action: () => setActivityView('documents') }
+                    ].map((item, i) => (
+                      <button
+                        key={i}
+                        onClick={item.action}
+                        className="p-3 rounded-2xl bg-white border border-agilo-border hover:border-agilo-bright flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-all group shadow-sm"
+                      >
+                        <item.icon className="w-5 h-5 text-agilo-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-[11px] font-semibold text-agilo-navy text-center leading-tight">
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="glass-card rounded-3xl p-6 border border-agilo-border flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider">Usage Overview</h3>
+                    <span className="text-[10px] text-agilo-secondary border border-agilo-border px-2 py-0.5 rounded-lg bg-white">
+                      This Week ▾
+                    </span>
                   </div>
 
-                  <div className="w-48 h-16 rounded-2xl bg-slate-50 p-2 border border-agilo-border">
-                    <svg viewBox="0 0 100 40" className="w-full h-full text-agilo-primary">
-                      <path
-                        d={usageStats ? usageStats.values.map((value, idx) => `${idx === 0 ? 'M' : 'L'} ${idx * 16 + 6} ${40 - value * 6}`).join(' ') : 'M 6 34 L 22 28 L 38 24 L 54 20 L 70 16 L 86 12 L 94 10'}
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        fill="none"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        ) : (
-          /* ACTIVE CHAT VIEW */
-          <div className="flex-1 flex flex-col overflow-hidden bg-agilo-bg">
-            {activityView === 'history' && (
-              <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-agilo-navy">Conversation History</h3>
-                  <button onClick={() => setActivityView('home')} className="text-sm text-agilo-primary">Close</button>
-                </div>
-                <div className="space-y-3 overflow-y-auto max-h-[70vh]">
-                  {historySessions.map((session) => (
-                    <button
-                      key={session.id}
-                      onClick={() => {
-                        const localId = `server-session-${session.id}`;
-                        setActiveSessionId(localId);
-                        setIsChatActive(true);
-                        setActivityView('home');
-                        loadSessionMessages(session.id, localId);
-                      }}
-                      className="w-full rounded-2xl border border-agilo-border bg-agilo-bg p-4 text-left"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-agilo-navy">{session.title}</span>
-                        <span className="text-xs text-agilo-secondary">{new Date(session.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <div className="text-3xl font-extrabold text-agilo-navy tracking-tight">
+                        {usageStats?.automation_rate ?? 0}%
                       </div>
-                    </button>
-                  ))}
-                </div>
-                
-              </div>
-              
-            )}
-
-            {activityView === 'documents' && (
-              <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-agilo-navy">Knowledge Base</h3>
-                  <button onClick={() => setActivityView('home')} className="text-sm text-agilo-primary">Close</button>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {documents.map((document) => (
-                    <div key={document.id} className="rounded-2xl border border-agilo-border bg-agilo-bg p-4">
-                      <div className="font-semibold text-agilo-navy">{document.filename}</div>
-                      <div className="mt-2 text-sm text-agilo-secondary">Uploaded {new Date(document.uploaded_at).toLocaleDateString()} • {document.chunk_count} chunks</div>
+                      <span className="text-xs text-agilo-secondary font-medium">Tasks Automated</span>
+                      <div className="text-[11px] font-semibold text-agilo-success flex items-center gap-1 mt-1">
+                        Live from analytics
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {activityView === 'analytics' && (
-  <AnalyticsPage onClose={() => setActivityView('home')} />
-)}
 
+                    <div className="w-48 h-16 rounded-2xl bg-slate-50 p-2 border border-agilo-border">
+                      <svg viewBox="0 0 100 40" className="w-full h-full text-agilo-primary">
+                        <path
+                          d={usageStats ? usageStats.values.map((value, idx) => `${idx === 0 ? 'M' : 'L'} ${idx * 16 + 6} ${40 - value * 6}`).join(' ') : 'M 6 34 L 22 28 L 38 24 L 54 20 L 70 16 L 86 12 L 94 10'}
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          fill="none"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          ) : (
+            /* ACTIVE CHAT VIEW */
             <ChatInterface
               messages={activeSession.messages}
               onSendMessage={handleSendMessage}
@@ -638,10 +644,11 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               isGenerating={isGenerating}
               currentToolStep={currentToolStep}
             />
-          </div>
-        )}
+          )}
+        </div>
 
-        <footer className="border-t border-agilo-border/60 bg-white/70 backdrop-blur-sm px-6 py-3 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary shrink-0">
+        {/* Footer — shrink-0 so it can NEVER be squeezed out by tall content above */}
+        <footer className="shrink-0 border-t border-agilo-border/60 bg-white/70 backdrop-blur-sm px-6 py-3 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-agilo-success" /> Live connection active</span>
             <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-agilo-primary" /> Documents synced</span>
@@ -650,7 +657,6 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         </footer>
       </div>
 
-      {/* Source Citation Modal Drawer */}
       <SourceDrawer
         source={selectedSource}
         onClose={() => setSelectedSource(null)}
