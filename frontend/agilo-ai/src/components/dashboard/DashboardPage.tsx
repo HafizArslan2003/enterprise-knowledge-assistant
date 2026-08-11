@@ -395,6 +395,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
           {/* Right: Quick actions & User profile */}
           <div className="flex items-center gap-3">
+            
 
             <button className="px-3 py-1.5 rounded-xl border border-agilo-border hover:bg-agilo-bg text-xs font-semibold text-agilo-navy flex items-center gap-1.5 transition-colors">
               <HelpCircle className="w-3.5 h-3.5 text-agilo-secondary" />
@@ -846,6 +847,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               onOpenSource={(source) => setSelectedSource(source)}
               isGenerating={isGenerating}
               currentToolStep={currentToolStep}
+              onUploadClick={() => console.log("Upload clicked")} // <-- ADD THIS LINE
             />
           )}
         </main>

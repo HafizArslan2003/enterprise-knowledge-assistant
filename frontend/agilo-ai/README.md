@@ -1,6 +1,6 @@
 # Agilo AI Frontend
 
-This frontend powers the Agilo AI enterprise assistant experience with a polished dashboard, animated 3D hero experience, authenticated chat flow, document upload, and live usage analytics.
+This frontend powers the Agilo AI enterprise assistant experience with a polished dashboard,  authenticated chat flow, document upload, and live usage analytics.
 
 ## What is connected now
 
