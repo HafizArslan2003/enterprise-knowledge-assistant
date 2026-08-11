@@ -6,7 +6,7 @@ export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-agilo-bg text-agilo-text">
+    <div className="w-screen h-dvh overflow-hidden bg-agilo-bg text-agilo-text">
       {!isAuthenticated ? (
         <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />
       ) : (

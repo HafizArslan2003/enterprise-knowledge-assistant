@@ -325,7 +325,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-agilo-bg flex flex-row relative font-sans selection:bg-agilo-bright/30">
+    <div className="fixed inset-0 w-screen h-dvh overflow-hidden bg-agilo-bg flex flex-row relative font-sans selection:bg-agilo-bright/30">
       {/* Background Decorators */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.12),_transparent_38%)] pointer-events-none" />
       <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(148,163,184,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:30px_30px] pointer-events-none" />
@@ -361,7 +361,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
       />
 
       {/* Right Main Shell Area — Header and Footer locked shrink-0 */}
-      <div className="flex-1 flex flex-col h-full min-h-0 max-h-screen overflow-hidden relative z-10">
+      <div className="flex-1 min-w-0 min-h-0 grid grid-rows-[4rem_minmax(0,1fr)] overflow-hidden relative z-10">
         <input
           ref={fileInputRef}
           type="file"
@@ -371,7 +371,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         />
 
         {/* 1. PERSISTENT UNCLUTTERED TOP HEADER NAVBAR */}
-        <header className="h-16 shrink-0 px-6 border-b border-agilo-border/80 bg-white/90 backdrop-blur-md flex items-center justify-between z-30 shadow-xs">
+        <header className="h-16 px-6 border-b border-agilo-border/80 bg-white/90 backdrop-blur-md flex items-center justify-between z-30 shadow-xs">
           {/* Left: Brand logo & Current View Breadcrumb */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActivityView('home')}>
@@ -423,7 +423,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         </header>
 
         {/* 2. MIDDLE WORKSPACE AREA — Seamless, full-bleed container with zero margin caps */}
-        <main className="flex-1 min-h-0 w-full overflow-hidden relative flex flex-col">
+        <main className="min-h-0 w-full overflow-hidden relative flex flex-col">
           {activityView === 'history' ? (
             /* HISTORY PAGE VIEW */
             <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
@@ -856,24 +856,6 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           )}
         </main>
 
-        {/* 3. PERSISTENT BOTTOM FOOTER */}
-        <footer className="h-10 shrink-0 border-t border-agilo-border/60 bg-white/80 backdrop-blur-sm px-6 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary z-20 shadow-inner">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-agilo-navy">
-              <span className="h-2 w-2 rounded-full bg-agilo-success animate-pulse" /> Live connection active
-            </span>
-            <span className="hidden sm:flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-agilo-primary" /> Documents synced ({documents.length})
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-agilo-navy font-bold uppercase tracking-wider text-[10px] bg-agilo-bg border border-agilo-border px-2.5 py-0.5 rounded-md">
-              Mode: {activityView.toUpperCase()}
-            </span>
-            <span className="hidden md:inline text-agilo-secondary">Secure enterprise workspace</span>
-          </div>
-        </footer>
       </div>
 
       <SourceDrawer

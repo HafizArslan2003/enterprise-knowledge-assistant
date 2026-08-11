@@ -67,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       animate={{ width: isCollapsed ? 80 : 280 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
       style={{ backgroundColor: '#0B1F3A' }}
-      className="h-screen text-white flex flex-col justify-between border-r border-[#1E293B] relative z-30 shadow-2xl shrink-0"
+      className="h-dvh text-white flex flex-col justify-between border-r border-[#1E293B] relative z-30 shadow-2xl shrink-0"
     >
       {/* Top Header & New Chat */}
       <div className="p-4 flex flex-col gap-3">
