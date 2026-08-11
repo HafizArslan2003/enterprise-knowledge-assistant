@@ -46,7 +46,7 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({ source, onClose }) =
           </div>
 
           {/* Drawer Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-6">
             {/* Metadata badges */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-xl bg-agilo-bg border border-agilo-border">

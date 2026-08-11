@@ -49,7 +49,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
   }).join(' ');
 
   return (
-    <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6 font-sans">
+    <div className="w-full h-full p-6 lg:p-8 overflow-y-auto overscroll-contain space-y-6 font-sans">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-xl font-extrabold text-agilo-navy tracking-tight">Analytics & Insights Overview</h3>
@@ -219,4 +219,4 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
       )}
     </div>
   );
-};
+};

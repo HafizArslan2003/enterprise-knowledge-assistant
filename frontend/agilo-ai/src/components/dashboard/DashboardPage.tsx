@@ -428,7 +428,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         <main className="min-h-0 w-full overflow-hidden relative flex flex-col">
           {activityView === 'history' ? (
             /* HISTORY PAGE VIEW */
-            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
+            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto overscroll-contain space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">Conversation History</h2>
@@ -494,7 +494,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
             </div>
           ) : activityView === 'documents' ? (
             /* KNOWLEDGE BASE / DOCUMENTS VIEW */
-            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
+            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto overscroll-contain space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">Enterprise Knowledge Base</h2>
@@ -576,7 +576,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
             <AnalyticsPage onClose={() => setActivityView('home')} />
           ) : activityView === 'settings' ? (
             /* SETTINGS PAGE VIEW */
-            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
+            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto overscroll-contain space-y-6">
               <div>
                 <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">System Settings & RAG Config</h2>
                 <p className="text-xs text-agilo-secondary mt-0.5 font-medium">Manage vector store parameters, model options, and workspace preferences</p>
@@ -640,7 +640,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
             </div>
           ) : !isChatActive ? (
             /* MAIN DASHBOARD HERO VIEW */
-            <div className="flex-1 overflow-y-auto p-6 lg:p-12 flex flex-col justify-between relative">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-6 lg:p-12 flex flex-col justify-between relative">
               <div className="max-w-3xl space-y-6 pt-4">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}

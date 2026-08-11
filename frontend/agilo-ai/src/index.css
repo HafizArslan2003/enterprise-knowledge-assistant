@@ -14,11 +14,18 @@
 }
 
 @layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   body {
     background-color: #F4F8FF;
     color: #0F172A;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    overflow-x: hidden;
   }
 }
 

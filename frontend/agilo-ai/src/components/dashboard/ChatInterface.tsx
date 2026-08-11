@@ -36,7 +36,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+ messagesEndRef.current?.scrollIntoView({ behavior: 'smooth',block:'nearest' });
   };
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <div className="absolute inset-0 min-h-0 flex flex-col z-20 overflow-hidden">
       {/* Messages Scroll Area — min-h-0 is essential so it scrolls inside bounds */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8 space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 lg:p-8 space-y-6">
         {messages.map((msg) => (
           <motion.div
             key={msg.id}

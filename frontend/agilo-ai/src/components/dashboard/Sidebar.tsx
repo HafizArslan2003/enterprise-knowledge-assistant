@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Recent Conversations List */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 border-t border-white/10">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-2 space-y-1 border-t border-white/10">
         {!isCollapsed && (
           <div className="px-2 py-1 flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
