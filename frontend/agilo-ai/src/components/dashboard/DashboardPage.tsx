@@ -395,14 +395,6 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
           {/* Right: Quick actions & User profile */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleUploadClick}
-              disabled={uploading}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-xs font-bold shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>{uploading ? 'Uploading...' : 'Upload Doc'}</span>
-            </button>
 
             <button className="px-3 py-1.5 rounded-xl border border-agilo-border hover:bg-agilo-bg text-xs font-semibold text-agilo-navy flex items-center gap-1.5 transition-colors">
               <HelpCircle className="w-3.5 h-3.5 text-agilo-secondary" />

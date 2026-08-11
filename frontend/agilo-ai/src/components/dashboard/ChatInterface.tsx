@@ -20,16 +20,20 @@ interface ChatInterfaceProps {
   messages: Message[];
   onSendMessage: (query: string) => void;
   onOpenSource: (source: SourceCitation) => void;
+  onUploadClick: () => void;
   isGenerating: boolean;
   currentToolStep?: string;
+  isUploading?: boolean;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
   onSendMessage,
   onOpenSource,
+  onUploadClick,
   isGenerating,
   currentToolStep,
+  isUploading,
 }) => {
   const [inputText, setInputText] = useState('');
   const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
@@ -229,8 +233,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="p-2 rounded-xl hover:bg-agilo-bg text-agilo-secondary hover:text-agilo-primary transition-colors cursor-pointer"
-                  title="Attach File"
+                  onClick={onUploadClick}
+                  disabled={isUploading}
+                  className="p-2 rounded-xl hover:bg-agilo-bg text-agilo-secondary hover:text-agilo-primary transition-colors cursor-pointer disabled:opacity-40"
+                  title={isUploading ? 'Uploading...' : 'Attach File'}
                 >
                   <Paperclip className="w-4 h-4" />
                 </button>

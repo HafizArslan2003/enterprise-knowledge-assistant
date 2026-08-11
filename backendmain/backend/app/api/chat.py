@@ -5,17 +5,11 @@ from backend.app.database.dependencies import get_db
 from backend.app.api.auth import get_current_user
 from backend.app.models.user import User
 from backend.app.models.chat import ChatSession, ChatMessage
-from backend.app.schemas.chat import ChatHistoryMessage, ChatHistorySession, ChatRequest, ChatResponse, Source
+from backend.app.schemas.chat import ChatHistoryMessage, ChatHistorySession, ChatRequest, ChatResponse
 from backend.app.services.search import search_documents
-from backend.app.core.llm import get_initial_response, get_final_response
+from backend.app.core.llm import get_grounded_response, REFUSAL_MESSAGE
 
 router = APIRouter()
-
-
-def distance_to_accuracy(distance: float) -> float:
-    """Convert pgvector cosine distance (0 = identical, 2 = opposite) to a percentage."""
-    similarity = 1 - (distance / 2)
-    return round(max(0.0, min(1.0, similarity)) * 100, 1)
 
 
 @router.get("/history", response_model=list[ChatHistorySession])
@@ -66,7 +60,6 @@ def ask_question(
             if not session:
                 raise HTTPException(status_code=404, detail="Session not found")
         else:
-            # Auto-generate a short title from the first question
             title = request.question.strip()
             if len(title) > 50:
                 title = title[:50].rsplit(" ", 1)[0] + "..."
@@ -81,68 +74,53 @@ def ask_question(
         db.add(user_message)
         db.commit()
 
-        # 3. Build recent conversation history (last 6 messages) for context
-        recent_messages = (
-            db.query(ChatMessage)
-            .filter(ChatMessage.session_id == session.id)
-            .order_by(ChatMessage.created_at.desc())
-            .limit(6)
-            .all()
-        )
-        recent_messages.reverse()
-        history_text = "\n".join([f"{m.role}: {m.content}" for m in recent_messages])
-
-        # 4. Ask the LLM whether it needs to search documents
-        initial = get_initial_response(request.question)
-        message = initial.choices[0].message
+        # 3. Always search the documents first — no LLM judgment call, no bypass
+        results = search_documents(db, request.question, top_k=3)
 
         source_doc_ids_str = None
+        sources = []
 
-        if not message.tool_calls:
-            answer = message.content
-            sources = []
-        
+        if not results:
+            answer = REFUSAL_MESSAGE
         else:
-            similar_chunks_with_scores = search_documents(db, request.question)
-            if not similar_chunks_with_scores:
-                answer = "No relevant documents were found to answer that."
-                sources = []
-            else:
-                similar_chunks = [chunk for chunk, _ in similar_chunks_with_scores]
-                context_text = "\n\n---\n\n".join([c.text for c in similar_chunks])
-                full_context = f"Conversation so far:\n{history_text}\n\nDocument context:\n{context_text}"
-                answer = get_final_response(request.question, full_context)
+            context_text = "\n\n---\n\n".join(
+                f"[Source: {chunk.document.filename}, Page {chunk.page_number}]\n{chunk.text}"
+                for chunk, _ in results
+            )
+            generated = get_grounded_response(request.question, context_text)
 
+            if not generated:
+                answer = "The AI service is currently unavailable. Please try again shortly."
+            elif REFUSAL_MESSAGE in generated:
+                # Model correctly found nothing usable — don't attach sources
+                # even though the vector search returned candidate chunks.
+                answer = generated
+            else:
+                answer = generated
                 raw_sources = [
-                    Source(
-                        document_name=chunk.document.filename,
-                        page_number=chunk.page_number,
-                        accuracy=distance_to_accuracy(distance),
-                        text_snippet=chunk.text[:200],
-                    )
-                    for chunk, distance in similar_chunks_with_scores
+                    {
+                        "document_name": chunk.document.filename,
+                        "page_number": chunk.page_number,
+                        "accuracy": pct,
+                        "text_snippet": chunk.text[:200],
+                    }
+                    for chunk, pct in results
                 ]
                 seen = set()
-                sources = []
                 for s in raw_sources:
-                    key = (s.document_name, s.page_number)
+                    key = (s["document_name"], s["page_number"])
                     if key not in seen:
                         seen.add(key)
                         sources.append(s)
 
-                # Track usage analytics: increment access_count for each unique document used
                 seen_doc_ids = set()
-                for chunk in similar_chunks:
+                for chunk, _ in results:
                     if chunk.document_id not in seen_doc_ids:
                         chunk.document.access_count = (chunk.document.access_count or 0) + 1
                         seen_doc_ids.add(chunk.document_id)
+                source_doc_ids_str = ",".join(str(doc_id) for doc_id in seen_doc_ids)
 
-                source_doc_ids_str = ",".join(str(doc_id) for doc_id in seen_doc_ids)       
-                        
-
-       
-        
-        # 5. Save the assistant's answer, including which documents it was grounded in
+        # 4. Save the assistant's answer, including which documents it was grounded in
         assistant_message = ChatMessage(
             session_id=session.id,
             role="assistant",
