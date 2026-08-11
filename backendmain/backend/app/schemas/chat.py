@@ -11,6 +11,8 @@ class ChatRequest(BaseModel):
 class Source(BaseModel):
     document_name: str
     page_number: int | None = None
+    accuracy: float | None = None
+    text_snippet: str | None = None
 
 
 class ChatResponse(BaseModel):

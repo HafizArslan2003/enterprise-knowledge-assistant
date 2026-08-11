@@ -65,7 +65,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col h-full relative z-20 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col relative z-20 overflow-hidden">
       {/* Messages Scroll Area — min-h-0 is essential so it scrolls inside bounds */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-8 space-y-6">
         {messages.map((msg) => (
@@ -132,7 +132,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           <span className="text-[10px] text-agilo-secondary font-mono bg-agilo-bg px-1.5 py-0.5 rounded">
                             P. {src.pageNumber}
                           </span>
-                          {src.confidence && (
+                          {src.confidence !== undefined && (
                             <span className="text-[9px] font-bold text-agilo-success bg-agilo-success/10 px-1.5 py-0.5 rounded">
                               {Math.round(src.confidence * 100)}% match
                             </span>
@@ -251,4 +251,3 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     </div>
   );
 };
-

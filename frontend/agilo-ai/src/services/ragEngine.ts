@@ -244,10 +244,10 @@ export async function processUserQuery(
         id: `src-${Date.now()}-${index + 1}`,
         docTitle: src.document_name,
         pageNumber: src.page_number ?? 1,
-        snippet: response.answer,
-        matchText: response.answer,
+        snippet: src.text_snippet ?? response.answer,
+        matchText: src.text_snippet ?? response.answer,
         category: 'Tech',
-        confidence: 0.92,
+        confidence: (src.accuracy ?? 92) / 100,
       })),
     };
   } catch (error) {

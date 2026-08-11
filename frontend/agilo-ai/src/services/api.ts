@@ -8,6 +8,8 @@ export interface AuthResponse {
 export interface BackendSource {
   document_name: string;
   page_number?: number | null;
+  accuracy?: number | null;
+  text_snippet?: string | null;
 }
 
 export interface BackendChatResponse {

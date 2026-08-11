@@ -361,7 +361,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
       />
 
       {/* Right Main Shell Area — Header and Footer locked shrink-0 */}
-      <div className="flex-1 flex flex-col h-full max-h-screen overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col h-full min-h-0 max-h-screen overflow-hidden relative z-10">
         <input
           ref={fileInputRef}
           type="file"

@@ -12,6 +12,12 @@ from backend.app.core.llm import get_initial_response, get_final_response
 router = APIRouter()
 
 
+def distance_to_accuracy(distance: float) -> float:
+    """Convert pgvector cosine distance (0 = identical, 2 = opposite) to a percentage."""
+    similarity = 1 - (distance / 2)
+    return round(max(0.0, min(1.0, similarity)) * 100, 1)
+
+
 @router.get("/history", response_model=list[ChatHistorySession])
 def get_chat_history(
     db: Session = Depends(get_db),
@@ -97,18 +103,24 @@ def ask_question(
             sources = []
         
         else:
-            similar_chunks = search_documents(db, request.question)
-            if not similar_chunks:
+            similar_chunks_with_scores = search_documents(db, request.question)
+            if not similar_chunks_with_scores:
                 answer = "No relevant documents were found to answer that."
                 sources = []
             else:
+                similar_chunks = [chunk for chunk, _ in similar_chunks_with_scores]
                 context_text = "\n\n---\n\n".join([c.text for c in similar_chunks])
                 full_context = f"Conversation so far:\n{history_text}\n\nDocument context:\n{context_text}"
                 answer = get_final_response(request.question, full_context)
 
                 raw_sources = [
-                    Source(document_name=chunk.document.filename, page_number=chunk.page_number)
-                    for chunk in similar_chunks
+                    Source(
+                        document_name=chunk.document.filename,
+                        page_number=chunk.page_number,
+                        accuracy=distance_to_accuracy(distance),
+                        text_snippet=chunk.text[:200],
+                    )
+                    for chunk, distance in similar_chunks_with_scores
                 ]
                 seen = set()
                 sources = []
