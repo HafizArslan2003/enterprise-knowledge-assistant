@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Sidebar } from './Sidebar';
+import { Sidebar, type ActivityView } from './Sidebar';
 import { ChatInterface } from './ChatInterface';
 import { SourceDrawer } from './SourceDrawer';
 import { AnalyticsPage } from './AnalyticsPage';
@@ -36,9 +36,15 @@ import {
   Bell,
   BookOpen,
   History,
-  Star,
   Upload,
-  BarChart3
+  BarChart3,
+  Settings as SettingsIcon,
+  Search,
+  FileText,
+  Clock,
+  Sliders,
+  CheckCircle2,
+  Cpu
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -64,8 +70,6 @@ const loadStoredConversations = (): ConversationSession[] => {
   }
 };
 
-type ActivityView = 'home' | 'history' | 'documents' | 'analytics';
-
 export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [conversations, setConversations] = useState<ConversationSession[]>(loadStoredConversations);
   const [activeSessionId, setActiveSessionId] = useState<string>(() => loadStoredConversations()[0]?.id ?? 'session-1');
@@ -79,13 +83,12 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [heroPrompt, setHeroPrompt] = useState<string>('');
   const [activeSessionIdNumber, setActiveSessionIdNumber] = useState<number | null>(null);
   const [historySessions, setHistorySessions] = useState<ChatHistorySession[]>([]);
+  const [historySearch, setHistorySearch] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<DocumentUploadResponse[]>([]);
+  const [docSearch, setDocSearch] = useState<string>('');
   const [usageStats, setUsageStats] = useState<UsageSummary | null>(null);
 
-  // IMPORTANT: activityView is now fully independent of isChatActive.
-  // 'home' means "show whatever the normal hero/chat view would show".
-  // Any other value means "show that full-screen panel instead, on top of everything below the header".
   const [activityView, setActivityView] = useState<ActivityView>('home');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,8 +103,6 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     if (!isChatActive) {
       setIsChatActive(true);
     }
-    // Sending a message should always bring you back to the chat view,
-    // even if an activity panel happened to be open.
     setActivityView('home');
 
     const userMsg: Message = {
@@ -307,14 +308,31 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     refreshCurrentUser();
   }, []);
 
+  const filteredHistory = historySessions.filter(s =>
+    s.title.toLowerCase().includes(historySearch.toLowerCase())
+  );
+
+  const filteredDocuments = documents.filter(d =>
+    d.filename.toLowerCase().includes(docSearch.toLowerCase())
+  );
+
+  const viewTitleMap: Record<ActivityView, string> = {
+    home: isChatActive ? 'Active Chat Session' : 'Overview Dashboard',
+    documents: 'Knowledge Base & Documents',
+    analytics: 'Analytics & Usage Metrics',
+    history: 'Conversation History',
+    settings: 'System & RAG Settings',
+  };
+
   return (
-    <div className="h-screen w-full bg-agilo-bg flex overflow-hidden relative font-sans selection:bg-agilo-bright/30">
+    <div className="fixed inset-0 w-screen h-screen overflow-hidden bg-agilo-bg flex flex-row relative font-sans selection:bg-agilo-bright/30">
+      {/* Background Decorators */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.12),_transparent_38%)] pointer-events-none" />
       <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(148,163,184,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:30px_30px] pointer-events-none" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }} className="absolute right-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-white/70 blur-3xl pointer-events-none" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.1 }} className="absolute bottom-[-6rem] left-[-4rem] h-80 w-80 rounded-full bg-sky-200/40 blur-3xl pointer-events-none" />
 
-      {/* Sidebar */}
+      {/* Persistent Sidebar */}
       <Sidebar
         conversations={conversations}
         activeSessionId={activeSessionId}
@@ -338,10 +356,12 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isLoadingSessions={isLoadingSessions}
         currentUsername={currentUser?.username}
+        activeView={activityView}
+        onNavigate={(view) => setActivityView(view)}
       />
 
-      {/* Main Content Area — header and footer are ALWAYS rendered here, shrink-0 locked */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative z-10">
+      {/* Right Main Shell Area — Header and Footer locked shrink-0 */}
+      <div className="flex-1 flex flex-col h-full max-h-screen overflow-hidden relative z-10">
         <input
           ref={fileInputRef}
           type="file"
@@ -350,26 +370,51 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           onChange={handleUpload}
         />
 
-        {/* Top Header Navbar — shrink-0 so it can NEVER be squeezed by tall content below */}
-        <header className="h-16 shrink-0 px-6 border-b border-agilo-border/60 bg-white/60 backdrop-blur-md flex items-center justify-between z-20">
+        {/* 1. PERSISTENT UNCLUTTERED TOP HEADER NAVBAR */}
+        <header className="h-16 shrink-0 px-6 border-b border-agilo-border/80 bg-white/90 backdrop-blur-md flex items-center justify-between z-30 shadow-xs">
+          {/* Left: Brand logo & Current View Breadcrumb */}
           <div className="flex items-center gap-3">
-            <span className="text-base font-bold text-agilo-navy tracking-tight">Agilo AI</span>
-            <span className="w-2 h-2 rounded-full bg-agilo-success animate-pulse" />
-            <span className="text-xs text-agilo-secondary font-medium">AI Assistant</span>
+            <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActivityView('home')}>
+              <img src="/logo.png" alt="Agilo AI Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
+              <span className="text-base font-extrabold text-agilo-navy tracking-tight">Agilo AI</span>
+              <span className="w-2 h-2 rounded-full bg-agilo-success animate-pulse" />
+            </div>
+
+            <div className="h-4 w-px bg-agilo-border/80 mx-1 hidden sm:block" />
+
+            {/* Current View Breadcrumb Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-agilo-secondary">
+              <span className="text-slate-400">Workspace /</span>
+              <span className="text-agilo-navy font-bold bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                {viewTitleMap[activityView]}
+              </span>
+            </div>
           </div>
 
+          {/* Right: Quick actions & User profile */}
           <div className="flex items-center gap-3">
-            <button className="px-3 py-1.5 rounded-xl border border-agilo-border hover:bg-agilo-bg text-xs font-semibold text-agilo-navy flex items-center gap-2 transition-colors">
-              <HelpCircle className="w-3.5 h-3.5 text-agilo-secondary" /> Help
+            <button
+              onClick={handleUploadClick}
+              disabled={uploading}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-xs font-bold shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{uploading ? 'Uploading...' : 'Upload Doc'}</span>
             </button>
-            <button className="w-8 h-8 rounded-xl border border-agilo-border hover:bg-agilo-bg flex items-center justify-center text-agilo-secondary hover:text-agilo-navy transition-colors relative">
+
+            <button className="px-3 py-1.5 rounded-xl border border-agilo-border hover:bg-agilo-bg text-xs font-semibold text-agilo-navy flex items-center gap-1.5 transition-colors">
+              <HelpCircle className="w-3.5 h-3.5 text-agilo-secondary" />
+              <span className="hidden sm:inline">Help</span>
+            </button>
+
+            <button className="w-8.5 h-8.5 rounded-xl border border-agilo-border hover:bg-agilo-bg flex items-center justify-center text-agilo-secondary hover:text-agilo-navy transition-colors relative cursor-pointer">
               <Bell className="w-4 h-4" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-agilo-primary rounded-full" />
             </button>
 
             <button
               onClick={onLogout}
-              className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-600 text-white font-bold text-xs flex items-center justify-center border border-white/40 shadow-sm"
+              className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-600 text-white font-bold text-xs flex items-center justify-center border border-white/40 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
               title="Sign Out"
             >
               {currentUser?.username ? currentUser.username.slice(0, 2).toUpperCase() : 'HI'}
@@ -377,63 +422,222 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
           </div>
         </header>
 
-        {/* Middle content — flex-1 + min-h-0 is critical: it lets THIS area scroll/shrink
-            instead of the header/footer being squeezed by flexbox */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {/* 2. MIDDLE WORKSPACE AREA — Seamless, full-bleed container with zero margin caps */}
+        <main className="flex-1 min-h-0 w-full overflow-hidden relative flex flex-col">
           {activityView === 'history' ? (
-            <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-agilo-navy">Conversation History</h3>
-                <button onClick={() => setActivityView('home')} className="text-sm text-agilo-primary font-semibold hover:underline cursor-pointer">Close</button>
+            /* HISTORY PAGE VIEW */
+            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">Conversation History</h2>
+                  <p className="text-xs text-agilo-secondary mt-0.5 font-medium">Browse and search your past AI chat sessions</p>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Search history..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-agilo-border rounded-xl text-xs text-agilo-navy placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-agilo-primary"
+                  />
+                </div>
               </div>
-              <div className="space-y-3 overflow-y-auto max-h-[65vh]">
-                {historySessions.length === 0 && (
-                  <p className="text-xs text-agilo-secondary">No conversations yet.</p>
-                )}
-                {historySessions.map((session) => (
+
+              {filteredHistory.length === 0 ? (
+                <div className="rounded-2xl border border-agilo-border bg-white/80 p-12 text-center shadow-sm">
+                  <Clock className="w-8 h-8 text-agilo-secondary mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-semibold text-agilo-navy">No conversation history found</p>
+                  <p className="text-xs text-agilo-secondary mt-1">Start a new query from the dashboard to create a session</p>
                   <button
-                    key={session.id}
-                    onClick={() => {
-                      const localId = `server-session-${session.id}`;
-                      setActiveSessionId(localId);
-                      setIsChatActive(true);
-                      setActivityView('home');
-                      loadSessionMessages(session.id, localId);
-                    }}
-                    className="w-full rounded-2xl border border-agilo-border bg-agilo-bg p-4 text-left hover:border-agilo-bright transition-colors"
+                    onClick={handleNewChat}
+                    className="mt-4 px-4 py-2 bg-agilo-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-agilo-deep transition-colors"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-agilo-navy">{session.title}</span>
-                      <span className="text-xs text-agilo-secondary">{new Date(session.created_at).toLocaleDateString()}</span>
-                    </div>
+                    Start New Chat
                   </button>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredHistory.map((session) => (
+                    <motion.div
+                      key={session.id}
+                      whileHover={{ y: -2 }}
+                      onClick={() => {
+                        const localId = `server-session-${session.id}`;
+                        setActiveSessionId(localId);
+                        setIsChatActive(true);
+                        setActivityView('home');
+                        loadSessionMessages(session.id, localId);
+                      }}
+                      className="rounded-2xl border border-agilo-border bg-white p-5 shadow-sm hover:border-agilo-bright hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-agilo-navy">
+                          <FileText className="w-4 h-4 text-agilo-primary shrink-0" />
+                          <span className="truncate">{session.title}</span>
+                        </div>
+                        <p className="text-[11px] text-agilo-secondary line-clamp-2">
+                          Enterprise AI session created on {new Date(session.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold text-agilo-secondary">
+                        <span>{new Date(session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="text-agilo-primary font-bold hover:underline">Open Session →</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : activityView === 'documents' ? (
-            <div className="m-6 rounded-3xl border border-agilo-border bg-white/80 p-6 shadow-xl backdrop-blur overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-agilo-navy">Knowledge Base</h3>
-                <button onClick={() => setActivityView('home')} className="text-sm text-agilo-primary font-semibold hover:underline cursor-pointer">Close</button>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {documents.length === 0 && (
-                  <p className="text-xs text-agilo-secondary">No documents uploaded yet.</p>
-                )}
-                {documents.map((document) => (
-                  <div key={document.id} className="rounded-2xl border border-agilo-border bg-agilo-bg p-4">
-                    <div className="font-semibold text-agilo-navy">{document.filename}</div>
-                    <div className="mt-2 text-sm text-agilo-secondary">Uploaded {new Date(document.uploaded_at).toLocaleDateString()} • {document.chunk_count} chunks</div>
+            /* KNOWLEDGE BASE / DOCUMENTS VIEW */
+            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">Enterprise Knowledge Base</h2>
+                  <p className="text-xs text-agilo-secondary mt-0.5 font-medium">Uploaded documents indexed for vector RAG retrieval</p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative w-full sm:w-56">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={docSearch}
+                      onChange={(e) => setDocSearch(e.target.value)}
+                      placeholder="Filter documents..."
+                      className="w-full pl-9 pr-3 py-1.5 bg-white border border-agilo-border rounded-xl text-xs text-agilo-navy placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-agilo-primary"
+                    />
                   </div>
-                ))}
+
+                  <button
+                    onClick={handleUploadClick}
+                    disabled={uploading}
+                    className="px-4 py-2 bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-xs font-bold rounded-xl shadow-md hover:opacity-90 transition-opacity flex items-center gap-2 shrink-0 cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>{uploading ? 'Uploading...' : 'Upload Document'}</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Upload Drop Zone Banner */}
+              <div
+                onClick={handleUploadClick}
+                className="rounded-2xl border-2 border-dashed border-agilo-primary/30 bg-agilo-primary/5 p-6 text-center hover:bg-agilo-primary/10 transition-colors cursor-pointer"
+              >
+                <Upload className="w-7 h-7 text-agilo-primary mx-auto mb-2" />
+                <span className="text-xs font-bold text-agilo-navy block">Click to upload files to vector store</span>
+                <span className="text-[11px] text-agilo-secondary block mt-0.5">Supports PDF, DOCX, TXT, and MD documents</span>
+              </div>
+
+              {filteredDocuments.length === 0 ? (
+                <div className="rounded-2xl border border-agilo-border bg-white/80 p-12 text-center shadow-sm">
+                  <BookOpen className="w-8 h-8 text-agilo-secondary mx-auto mb-2 opacity-50" />
+                  <p className="text-sm font-semibold text-agilo-navy">No documents indexed yet</p>
+                  <p className="text-xs text-agilo-secondary mt-1">Upload files above to populate your Enterprise Knowledge Base</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredDocuments.map((doc) => (
+                    <div key={doc.id} className="rounded-2xl border border-agilo-border bg-white p-5 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-agilo-primary/10 flex items-center justify-center text-agilo-primary shrink-0">
+                            <FileText className="w-4.5 h-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-agilo-navy truncate">{doc.filename}</h4>
+                            <span className="text-[10px] text-agilo-secondary block">
+                              Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-agilo-secondary pt-2 border-t border-slate-100">
+                        <span className="bg-slate-100 text-agilo-navy px-2 py-0.5 rounded-lg">
+                          {doc.chunk_count} chunks indexed
+                        </span>
+                        <span className="text-agilo-success flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Ready
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : activityView === 'analytics' ? (
-            <div className="flex-1 overflow-y-auto">
-              <AnalyticsPage onClose={() => setActivityView('home')} />
+            /* ANALYTICS VIEW */
+            <AnalyticsPage onClose={() => setActivityView('home')} />
+          ) : activityView === 'settings' ? (
+            /* SETTINGS PAGE VIEW */
+            <div className="w-full h-full p-6 lg:p-8 overflow-y-auto space-y-6">
+              <div>
+                <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">System Settings & RAG Config</h2>
+                <p className="text-xs text-agilo-secondary mt-0.5 font-medium">Manage vector store parameters, model options, and workspace preferences</p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="rounded-2xl border border-agilo-border bg-white p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-agilo-primary/10 flex items-center justify-center text-agilo-primary">
+                      <Sliders className="w-4.5 h-4.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-agilo-navy">Retrieval Configuration</h4>
+                      <span className="text-xs text-agilo-secondary">Vector embeddings & search options</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <label className="text-xs font-semibold text-agilo-navy block mb-1">Chunk Size (Tokens)</label>
+                      <input type="text" readOnly value="512" className="w-full px-3 py-1.5 bg-slate-50 border border-agilo-border rounded-xl text-xs text-agilo-navy font-mono" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-agilo-navy block mb-1">Chunk Overlap</label>
+                      <input type="text" readOnly value="50" className="w-full px-3 py-1.5 bg-slate-50 border border-agilo-border rounded-xl text-xs text-agilo-navy font-mono" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-agilo-navy block mb-1">Top-K Retrieval Count</label>
+                      <input type="text" readOnly value="4" className="w-full px-3 py-1.5 bg-slate-50 border border-agilo-border rounded-xl text-xs text-agilo-navy font-mono" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-agilo-border bg-white p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-agilo-cyan/20 flex items-center justify-center text-agilo-navy">
+                      <Cpu className="w-4.5 h-4.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-agilo-navy">Connected Backend API</h4>
+                      <span className="text-xs text-agilo-secondary font-medium">FastAPI + SQLite Engine</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2 text-xs">
+                    <div className="flex justify-between p-2.5 rounded-xl bg-agilo-bg border border-agilo-border">
+                      <span className="text-agilo-secondary font-semibold">Database File</span>
+                      <span className="font-bold text-agilo-navy">backendmain/eka.db</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-agilo-bg border border-agilo-border">
+                      <span className="text-agilo-secondary font-semibold">Active User</span>
+                      <span className="font-bold text-agilo-navy">{currentUser?.username || 'Authenticated'}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-agilo-bg border border-agilo-border">
+                      <span className="text-agilo-secondary font-semibold">Status</span>
+                      <span className="font-bold text-agilo-success">● Connected & Synced</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : !isChatActive ? (
-            /* HERO VIEW */
+            /* MAIN DASHBOARD HERO VIEW */
             <div className="flex-1 overflow-y-auto p-6 lg:p-12 flex flex-col justify-between relative">
               <div className="max-w-3xl space-y-6 pt-4">
                 <motion.div
@@ -480,14 +684,18 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
                   <div className="flex items-center justify-between pt-3 border-t border-agilo-border/50">
                     <div className="flex items-center gap-2">
-                      <button className="p-2 rounded-xl hover:bg-agilo-bg text-agilo-secondary hover:text-agilo-primary transition-colors">
+                      <button
+                        onClick={handleUploadClick}
+                        className="p-2 rounded-xl hover:bg-agilo-bg text-agilo-secondary hover:text-agilo-primary transition-colors cursor-pointer"
+                        title="Upload file"
+                      >
                         <Paperclip className="w-4 h-4" />
                       </button>
                     </div>
 
                     <button
                       onClick={() => handleSendMessage(heroPrompt || "What is our company's policy on annual PTO roll-over?")}
-                      className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-sm font-semibold shadow-lg shadow-agilo-primary/30 hover:shadow-xl hover:shadow-agilo-primary/40 hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                      className="py-2.5 px-6 rounded-xl bg-gradient-to-r from-agilo-deep to-agilo-primary text-white text-sm font-semibold shadow-lg shadow-agilo-primary/30 hover:shadow-xl hover:shadow-agilo-primary/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer"
                     >
                       <span>Send Query</span>
                       <Send className="w-4 h-4" />
@@ -510,7 +718,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                     <button
                       key={idx}
                       onClick={() => handleSendMessage(chip.query)}
-                      className="px-4 py-2 rounded-2xl bg-white/80 hover:bg-white border border-agilo-border hover:border-agilo-bright text-xs font-semibold text-agilo-navy transition-all shadow-sm hover:shadow hover:-translate-y-0.5 flex items-center gap-2"
+                      className="px-4 py-2 rounded-2xl bg-white/80 hover:bg-white border border-agilo-border hover:border-agilo-bright text-xs font-semibold text-agilo-navy transition-all shadow-sm hover:shadow hover:-translate-y-0.5 flex items-center gap-2 cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-agilo-primary" />
                       <span>{chip.label}</span>
@@ -531,8 +739,8 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                   </div>
                   <div>
                     <span className="text-xs font-bold text-agilo-navy block">Online</span>
-                    <span className="text-[10px] text-agilo-success flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-agilo-success" /> AI Assistant is online
+                    <span className="text-[10px] text-agilo-success flex items-center gap-1 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-agilo-success" /> AI Assistant active
                     </span>
                   </div>
                 </motion.div>
@@ -547,9 +755,9 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                     <Database className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-xs font-bold text-agilo-navy block">Knowledge Connected</span>
-                    <span className="text-[10px] text-agilo-success flex items-center gap-1">
-                      ✓ Documents indexed
+                    <span className="text-xs font-bold text-agilo-navy block">Knowledge Base</span>
+                    <span className="text-[10px] text-agilo-success flex items-center gap-1 font-medium">
+                      ✓ {documents.length} docs connected
                     </span>
                   </div>
                 </motion.div>
@@ -565,13 +773,14 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                   </div>
                   <div>
                     <span className="text-xs font-bold text-agilo-navy block">Agent Ready</span>
-                    <span className="text-[10px] text-agilo-success flex items-center gap-1">
+                    <span className="text-[10px] text-agilo-success flex items-center gap-1 font-medium">
                       ✓ Tool calling enabled
                     </span>
                   </div>
                 </motion.div>
               </div>
 
+              {/* Quick Navigation Cards */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -582,16 +791,16 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                   <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider mb-4">Quick Access</h3>
                   <div className="grid grid-cols-5 gap-3">
                     {[
-                      { label: uploading ? 'Uploading…' : 'Upload Document', icon: Upload, action: handleUploadClick },
+                      { label: uploading ? 'Uploading…' : 'Upload Doc', icon: Upload, action: handleUploadClick },
                       { label: 'Knowledge Base', icon: BookOpen, action: () => setActivityView('documents') },
                       { label: 'Chat History', icon: History, action: () => setActivityView('history') },
                       { label: 'Analytics', icon: BarChart3, action: () => setActivityView('analytics') },
-                      { label: 'Favorites', icon: Star, action: () => setActivityView('documents') }
+                      { label: 'Settings', icon: SettingsIcon, action: () => setActivityView('settings') }
                     ].map((item, i) => (
                       <button
                         key={i}
                         onClick={item.action}
-                        className="p-3 rounded-2xl bg-white border border-agilo-border hover:border-agilo-bright flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-all group shadow-sm"
+                        className="p-3 rounded-2xl bg-white border border-agilo-border hover:border-agilo-bright flex flex-col items-center justify-center gap-2 hover:-translate-y-1 transition-all group shadow-sm cursor-pointer"
                       >
                         <item.icon className="w-5 h-5 text-agilo-primary group-hover:scale-110 transition-transform" />
                         <span className="text-[11px] font-semibold text-agilo-navy text-center leading-tight">
@@ -605,9 +814,9 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                 <div className="glass-card rounded-3xl p-6 border border-agilo-border flex flex-col justify-between">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-bold text-agilo-navy uppercase tracking-wider">Usage Overview</h3>
-                    <span className="text-[10px] text-agilo-secondary border border-agilo-border px-2 py-0.5 rounded-lg bg-white">
-                      This Week ▾
-                    </span>
+                    <button onClick={() => setActivityView('analytics')} className="text-[10px] text-agilo-primary font-bold hover:underline cursor-pointer">
+                      View Analytics →
+                    </button>
                   </div>
 
                   <div className="flex items-end justify-between gap-4">
@@ -617,7 +826,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                       </div>
                       <span className="text-xs text-agilo-secondary font-medium">Tasks Automated</span>
                       <div className="text-[11px] font-semibold text-agilo-success flex items-center gap-1 mt-1">
-                        Live from analytics
+                        Live from backend
                       </div>
                     </div>
 
@@ -636,7 +845,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               </motion.div>
             </div>
           ) : (
-            /* ACTIVE CHAT VIEW */
+            /* ACTIVE CHAT INTERFACE VIEW */
             <ChatInterface
               messages={activeSession.messages}
               onSendMessage={handleSendMessage}
@@ -645,15 +854,25 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
               currentToolStep={currentToolStep}
             />
           )}
-        </div>
+        </main>
 
-        {/* Footer — shrink-0 so it can NEVER be squeezed out by tall content above */}
-        <footer className="shrink-0 border-t border-agilo-border/60 bg-white/70 backdrop-blur-sm px-6 py-3 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary">
+        {/* 3. PERSISTENT BOTTOM FOOTER */}
+        <footer className="h-10 shrink-0 border-t border-agilo-border/60 bg-white/80 backdrop-blur-sm px-6 flex items-center justify-between text-[11px] font-semibold text-agilo-secondary z-20 shadow-inner">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-agilo-success" /> Live connection active</span>
-            <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-agilo-primary" /> Documents synced</span>
+            <span className="flex items-center gap-1.5 text-agilo-navy">
+              <span className="h-2 w-2 rounded-full bg-agilo-success animate-pulse" /> Live connection active
+            </span>
+            <span className="hidden sm:flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-agilo-primary" /> Documents synced ({documents.length})
+            </span>
           </div>
-          <span className="text-agilo-navy">Secure enterprise workspace</span>
+
+          <div className="flex items-center gap-3">
+            <span className="text-agilo-navy font-bold uppercase tracking-wider text-[10px] bg-agilo-bg border border-agilo-border px-2.5 py-0.5 rounded-md">
+              Mode: {activityView.toUpperCase()}
+            </span>
+            <span className="hidden md:inline text-agilo-secondary">Secure enterprise workspace</span>
+          </div>
         </footer>
       </div>
 

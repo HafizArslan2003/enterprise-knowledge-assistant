@@ -142,16 +142,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           <div className="w-full lg:w-[54%] h-full bg-[#F8FAFF] flex items-center justify-center p-5 sm:p-8 lg:p-10">
             <div className="w-full max-w-[420px]">
               {/* Mobile-only brand mark */}
-              <div className="flex lg:hidden items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
+              <div className="flex lg:hidden items-center gap-2.5 mb-5">
+                <img src="/logo.png" alt="Agilo AI Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
                 <span className="text-base font-extrabold text-[#0B1F3A]">AGILO AI</span>
               </div>
 
               <div className="mb-5">
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-[#DCE7F5] mb-3 shadow-sm">
-                  <Sparkles className="w-5 h-5 text-[#2563EB]" />
+                <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white border border-[#DCE7F5] mb-3 shadow-sm overflow-hidden p-1">
+                  <img src="/logo.png" alt="Agilo AI Logo" className="w-full h-full object-cover rounded-lg" />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-extrabold text-[#0B1F3A] tracking-tight">
                   {mode === 'login' ? 'Welcome Back' : 'Create Your Account'}
