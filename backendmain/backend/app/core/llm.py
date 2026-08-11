@@ -92,3 +92,24 @@ def get_final_response(question: str, tool_result_text: str) -> str:
             "I could not reach the AI provider, but I can still answer from the available context. "
             f"Documents referenced in the current session are summarized below:\n{tool_result_text}"
         )
+
+
+def get_final_response(question: str, tool_result_text: str) -> str:
+    try:
+        response = client.chat.completions.create(
+            model="gemini-3.6-flash",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": question},
+                {"role": "user", "content": f"Search results:\n{tool_result_text}"},
+            ],
+        )
+        content = response.choices[0].message.content
+        if not content:
+            return "I found relevant documents, but wasn't able to generate a response from them. Please try rephrasing your question."
+        return content
+    except Exception:
+        return (
+            "I could not reach the AI provider, but I can still answer from the available context. "
+            f"Documents referenced in the current session are summarized below:\n{tool_result_text}"
+        )    

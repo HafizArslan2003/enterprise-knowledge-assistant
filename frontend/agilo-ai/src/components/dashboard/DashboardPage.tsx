@@ -186,6 +186,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
     setActiveSessionId(newId);
     setIsChatActive(false);
     setActivityView('home');
+    setActivityView('home');
   };
 
   const refreshHistory = async () => {
@@ -339,6 +340,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         onSelectSession={(id) => {
           setActiveSessionId(id);
           setIsChatActive(true);
+          setActivityView('home');
           setActivityView('home');
 
           if (id.startsWith('server-session-')) {
