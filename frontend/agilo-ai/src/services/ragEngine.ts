@@ -201,13 +201,12 @@ export const INITIAL_CONVERSATIONS: ConversationSession[] = [
 ];
 
 import { askQuestion } from './api';
-
 export async function processUserQuery(
   userQuery: string,
   onStepUpdate?: (step: string) => void,
   token?: string,
   sessionId?: number | null
-): Promise<{ content: string; usedDocumentSearch: boolean; toolSteps: string[]; sources?: SourceCitation[] }> {
+): Promise<{ content: string; usedDocumentSearch: boolean; toolSteps: string[]; sources?: SourceCitation[]; sessionId: number | null }> {
   const queryLower = userQuery.toLowerCase();
   const isDirectGreeting = /^(hi|hello|hey|greetings|who are you|what can you do|help)$/i.test(queryLower.trim());
 
@@ -228,6 +227,7 @@ export async function processUserQuery(
         content: `Hello! I'm **Agilo AI**, your enterprise knowledge assistant. I can search through company policies, architecture specifications, HR documentation, and security guidelines to answer your questions with verified citations.\n\nHow can I assist your workflow today?`,
         usedDocumentSearch: false,
         toolSteps,
+        sessionId: sessionId ?? null,
       };
     }
 
@@ -240,14 +240,15 @@ export async function processUserQuery(
       content: response.answer,
       usedDocumentSearch: response.sources.length > 0,
       toolSteps,
+      sessionId: response.session_id ?? null,
       sources: response.sources.map((src, index) => ({
         id: `src-${Date.now()}-${index + 1}`,
         docTitle: src.document_name,
         pageNumber: src.page_number ?? 1,
-        snippet: src.text_snippet ?? response.answer,
-        matchText: src.text_snippet ?? response.answer,
+        snippet: response.answer,
+        matchText: response.answer,
         category: 'Tech',
-        confidence: (src.accuracy ?? 92) / 100,
+        confidence: 0.92,
       })),
     };
   } catch (error) {
@@ -259,6 +260,7 @@ export async function processUserQuery(
       content: `I couldn't reach the backend right now. Please make sure the API server is running at http://127.0.0.1:8000 and try again.\n\n${message}`,
       usedDocumentSearch: false,
       toolSteps,
+      sessionId: sessionId ?? null,
     };
   }
 }

@@ -18,11 +18,12 @@ def get_chat_history(
     current_user: User = Depends(get_current_user),
 ):
     sessions = (
-        db.query(ChatSession)
-        .filter(ChatSession.user_id == current_user.id)
-        .order_by(ChatSession.created_at.desc())
-        .all()
-    )
+    db.query(ChatSession)
+    .filter(ChatSession.user_id == current_user.id)
+    .filter(ChatSession.messages.any())
+    .order_by(ChatSession.created_at.desc())
+    .all()
+)
 
     return [
         ChatHistorySession(

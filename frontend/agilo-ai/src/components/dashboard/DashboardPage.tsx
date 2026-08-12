@@ -96,8 +96,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
 
   const activeSession = conversations.find(c => c.id === activeSessionId) || conversations[0];
-
-  const handleSendMessage = async (queryText: string) => {
+const handleSendMessage = async (queryText: string) => {
     if (!queryText.trim() || isGenerating) return;
 
     if (!isChatActive) {
@@ -138,6 +137,10 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         token,
         activeSessionIdNumber
       );
+
+      if (activeSessionIdNumber === null && response.sessionId !== null) {
+        setActiveSessionIdNumber(response.sessionId);
+      }
 
       const assistantMsg: Message = {
         id: `msg-ai-${Date.now()}`,
@@ -373,21 +376,14 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
         />
 
         {/* 1. PERSISTENT UNCLUTTERED TOP HEADER NAVBAR */}
+        {/* 1. PERSISTENT UNCLUTTERED TOP HEADER NAVBAR */}
         <header className="h-16 px-6 border-b border-agilo-border/80 bg-white/90 backdrop-blur-md flex items-center justify-between z-30 shadow-xs">
-          {/* Left: Brand logo & Current View Breadcrumb */}
+          {/* Left: Current View Breadcrumb */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActivityView('home')}>
-              <img src="/logo.png" alt="Agilo AI Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-slate-200" />
-              <span className="text-base font-extrabold text-agilo-navy tracking-tight">Agilo AI</span>
-              <span className="w-2 h-2 rounded-full bg-agilo-success animate-pulse" />
-            </div>
-
-            <div className="h-4 w-px bg-agilo-border/80 mx-1 hidden sm:block" />
-
-            {/* Current View Breadcrumb Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-agilo-secondary">
-              <span className="text-slate-400">Workspace /</span>
-              <span className="text-agilo-navy font-bold bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-2 text-sm font-semibold text-agilo-secondary">
+              <span className="text-slate-400">Workspace</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-agilo-navy font-bold bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                 {viewTitleMap[activityView]}
               </span>
             </div>
@@ -395,9 +391,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
           {/* Right: Quick actions & User profile */}
           <div className="flex items-center gap-3">
-            
-
-            <button className="px-3 py-1.5 rounded-xl border border-agilo-border hover:bg-agilo-bg text-xs font-semibold text-agilo-navy flex items-center gap-1.5 transition-colors">
+            <button className="px-3 py-1.5 rounded-xl border border-agilo-border hover:bg-agilo-bg text-xs font-semibold text-agilo-navy flex items-center gap-1.5 transition-colors cursor-pointer">
               <HelpCircle className="w-3.5 h-3.5 text-agilo-secondary" />
               <span className="hidden sm:inline">Help</span>
             </button>
@@ -409,10 +403,10 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 
             <button
               onClick={onLogout}
-              className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-600 text-white font-bold text-xs flex items-center justify-center border border-white/40 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+              className="px-4 py-2 rounded-xl bg-gradient-to-tr from-sky-400 to-blue-600 text-white font-bold text-xs flex items-center justify-center border border-white/40 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
               title="Sign Out"
             >
-              {currentUser?.username ? currentUser.username.slice(0, 2).toUpperCase() : 'HI'}
+              Sign Out
             </button>
           </div>
         </header>
