@@ -5,10 +5,11 @@ from jose import jwt, JWTError
 
 from backend.app.database.dependencies import get_db
 from backend.app.models.user import User
-from backend.app.schemas.user import UserCreate, UserResponse
+from backend.app.schemas.user import GeminiApiKeyStatus, GeminiApiKeyUpdate, UserCreate, UserResponse
 from backend.app.schemas.token import Token
 from backend.app.core.security import get_password_hash, verify_password, create_access_token, ALGORITHM
 from backend.app.core.config import settings
+from backend.app.core.api_key_crypto import encrypt_api_key, decrypt_api_key
 
 router = APIRouter()
 
@@ -81,3 +82,27 @@ def login_access_token(
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/gemini-key", response_model=GeminiApiKeyStatus)
+def get_gemini_key_status(current_user: User = Depends(get_current_user)):
+    api_key = decrypt_api_key(current_user.encrypted_gemini_api_key)
+    return GeminiApiKeyStatus(
+        configured=bool(api_key),
+        masked_key=f"••••••••{api_key[-4:]}" if api_key else None,
+    )
+
+
+@router.put("/gemini-key", response_model=GeminiApiKeyStatus)
+def save_gemini_key(
+    payload: GeminiApiKeyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    api_key = payload.api_key.strip()
+    if len(api_key) < 20:
+        raise HTTPException(status_code=400, detail="Enter a valid Gemini API key")
+
+    current_user.encrypted_gemini_api_key = encrypt_api_key(api_key)
+    db.commit()
+    return GeminiApiKeyStatus(configured=True, masked_key=f"••••••••{api_key[-4:]}")

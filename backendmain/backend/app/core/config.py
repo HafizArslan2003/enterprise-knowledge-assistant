@@ -7,6 +7,10 @@ class Settings(BaseSettings):
 
     # AI / LLM Configuration
     OPENAI_API_KEY: str = ""
+    QUERY_EMBEDDING_CACHE_SIZE: int = 256
+    RAG_TOP_K: int = 3
+    RAG_HISTORY_TURNS: int = 6
+    RAG_MAX_OUTPUT_TOKENS: int = 600
 
     # Database Configuration
     # Note: Ensure 'password' is replaced with your actual pgAdmin master password

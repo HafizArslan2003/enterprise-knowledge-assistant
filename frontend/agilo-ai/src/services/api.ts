@@ -52,6 +52,11 @@ export interface UserResponse {
   email: string;
 }
 
+export interface GeminiApiKeyStatus {
+  configured: boolean;
+  masked_key?: string | null;
+}
+
 export interface SessionListItem {
   id: number;
   title: string | null;
@@ -152,6 +157,22 @@ export async function getCurrentUser(token?: string) {
   return request<UserResponse>('/api/v1/auth/me', { method: 'GET' }, token);
 }
 
+export async function getGeminiApiKeyStatus(token?: string) {
+  return request<GeminiApiKeyStatus>('/api/v1/auth/gemini-key', { method: 'GET' }, token);
+}
+
+export async function saveGeminiApiKey(apiKey: string, token?: string) {
+  return request<GeminiApiKeyStatus>(
+    '/api/v1/auth/gemini-key',
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey }),
+    },
+    token
+  );
+}
+
 export async function askQuestion(question: string, token?: string, sessionId?: number | null) {
   return request<BackendChatResponse>(
     '/api/v1/chat/ask',
@@ -185,6 +206,14 @@ export async function listSessions(token?: string) {
 // NEW: GET /api/v1/sessions/{id} (single session with full messages)
 export async function getSessionDetail(sessionId: number, token?: string) {
   return request<ChatHistorySession>(`/api/v1/sessions/${sessionId}`, { method: 'GET' }, token);
+}
+
+export async function deleteChatSession(sessionId: number, token?: string) {
+  return request<{ status: string }>(
+    `/api/v1/sessions/${sessionId}`,
+    { method: 'DELETE' },
+    token
+  );
 }
 
 export async function getChatHistory(token?: string) {

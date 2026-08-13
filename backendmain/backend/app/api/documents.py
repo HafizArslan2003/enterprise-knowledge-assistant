@@ -10,6 +10,7 @@ from backend.app.schemas.document import DocumentResponse
 from backend.app.core.chunking import chunk_text
 from backend.app.services.embedding import get_embedding
 from backend.app.services.extraction import extract_text_by_page
+from backend.app.core.api_key_crypto import decrypt_api_key
 
 router = APIRouter()
 
@@ -54,6 +55,10 @@ def upload_document(
             detail=f"Unsupported file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}",
         )
 
+    api_key = decrypt_api_key(current_user.encrypted_gemini_api_key)
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Add your Gemini API key in Settings before uploading documents")
+
     try:
         filepath = os.path.join(UPLOAD_DIR, file.filename)
         with open(filepath, "wb") as f:
@@ -75,7 +80,7 @@ def upload_document(
             page_chunks = chunk_text(page_text)
             for c in page_chunks:
                 try:
-                    vector = get_embedding(c)
+                    vector = get_embedding(api_key, c, use_cache=False)
                 except Exception:
                     vector = [0.0] * 768
 

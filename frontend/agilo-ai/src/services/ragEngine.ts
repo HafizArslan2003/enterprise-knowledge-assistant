@@ -207,30 +207,13 @@ export async function processUserQuery(
   token?: string,
   sessionId?: number | null
 ): Promise<{ content: string; usedDocumentSearch: boolean; toolSteps: string[]; sources?: SourceCitation[]; sessionId: number | null }> {
-  const queryLower = userQuery.toLowerCase();
-  const isDirectGreeting = /^(hi|hello|hey|greetings|who are you|what can you do|help)$/i.test(queryLower.trim());
-
   const toolSteps: string[] = ['Analyzing request...'];
   if (onStepUpdate) onStepUpdate('Analyzing request...');
 
-  if (!isDirectGreeting) {
-    toolSteps.push('🔎 Searching knowledge base...');
-    if (onStepUpdate) onStepUpdate('🔎 Searching knowledge base...');
-  }
+  toolSteps.push('🔎 Searching knowledge base...');
+  if (onStepUpdate) onStepUpdate('🔎 Searching knowledge base...');
 
   try {
-    if (isDirectGreeting) {
-      toolSteps.push('🧠 Answered Directly');
-      if (onStepUpdate) onStepUpdate('🧠 Answered Directly');
-
-      return {
-        content: `Hello! I'm **Agilo AI**, your enterprise knowledge assistant. I can search through company policies, architecture specifications, HR documentation, and security guidelines to answer your questions with verified citations.\n\nHow can I assist your workflow today?`,
-        usedDocumentSearch: false,
-        toolSteps,
-        sessionId: sessionId ?? null,
-      };
-    }
-
     const response = await askQuestion(userQuery, token, sessionId);
 
     toolSteps.push(`✓ ${response.sources.length} Sources found`);
@@ -245,10 +228,10 @@ export async function processUserQuery(
         id: `src-${Date.now()}-${index + 1}`,
         docTitle: src.document_name,
         pageNumber: src.page_number ?? 1,
-        snippet: response.answer,
-        matchText: response.answer,
+        snippet: src.text_snippet ?? response.answer,
+        matchText: src.text_snippet ?? response.answer,
         category: 'Tech',
-        confidence: 0.92,
+        confidence: (src.accuracy ?? 92) / 100,
       })),
     };
   } catch (error) {

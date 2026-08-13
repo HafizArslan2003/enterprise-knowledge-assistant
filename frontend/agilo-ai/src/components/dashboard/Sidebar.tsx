@@ -12,7 +12,8 @@ import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
-  History
+  History,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -22,6 +23,7 @@ interface SidebarProps {
   conversations: ConversationSession[];
   activeSessionId: string;
   onSelectSession: (id: string) => void;
+  onDeleteSession: (id: string) => void;
   onNewChat: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -35,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   conversations,
   activeSessionId,
   onSelectSession,
+  onDeleteSession,
   onNewChat,
   isCollapsed,
   onToggleCollapse,
@@ -175,25 +178,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {filteredConversations.map((conv) => {
           const isActive = conv.id === activeSessionId && activeView === 'home';
           return (
-            <button
+            <div
               key={conv.id}
-              onClick={() => onSelectSession(conv.id)}
+              className="relative group"
+            >
+              <button
+                onClick={() => onSelectSession(conv.id)}
               className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center gap-3 group relative cursor-pointer ${
                 isActive
                   ? 'bg-[#2563EB]/30 border border-[#38BDF8]/40 text-white font-semibold'
                   : 'hover:bg-white/10 text-slate-200 hover:text-white border border-transparent'
               } ${isCollapsed ? 'justify-center px-0' : ''}`}
               title={conv.title}
-            >
-              <FileText className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#38BDF8]' : 'text-slate-400 group-hover:text-slate-200'}`} />
-              
-              {!isCollapsed && (
-                <div className="flex-1 overflow-hidden min-w-0 flex items-center justify-between">
-                  <span className="text-xs truncate">{conv.title}</span>
-                  <span className="text-[10px] text-slate-400 shrink-0 ml-2">{conv.updatedAt}</span>
-                </div>
-              )}
-            </button>
+                >
+                  <FileText className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#38BDF8]' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                  {!isCollapsed && (
+                    <div className="flex-1 overflow-hidden min-w-0 flex items-center justify-between pr-5">
+                      <span className="text-xs truncate">{conv.title}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0 ml-2">{conv.updatedAt}</span>
+                    </div>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteSession(conv.id);
+                  }}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:bg-red-500/20 hover:text-red-300 transition-opacity ${
+                    isCollapsed ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+                  }`}
+                  title="Delete chat permanently"
+                  aria-label={`Delete ${conv.title} permanently`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
           );
         })}
       </div>

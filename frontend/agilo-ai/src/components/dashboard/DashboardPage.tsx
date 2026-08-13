@@ -4,21 +4,23 @@ import { ChatInterface } from './ChatInterface';
 import { SourceDrawer } from './SourceDrawer';
 import { AnalyticsPage } from './AnalyticsPage';
 import {
-  INITIAL_CONVERSATIONS,
   processUserQuery
 } from '../../services/ragEngine';
 import {
-  createChatSession,
   getUsageStats,
   listDocuments,
   uploadDocument,
   listSessions,
   getSessionDetail,
+  deleteChatSession,
   getCurrentUser,
+  getGeminiApiKeyStatus,
+  saveGeminiApiKey,
   type ChatHistorySession,
   type DocumentUploadResponse,
   type UsageSummary,
-  type UserResponse
+  type UserResponse,
+  type GeminiApiKeyStatus
 } from '../../services/api';
 import type {
   ConversationSession,
@@ -44,11 +46,11 @@ import {
   Clock,
   Sliders,
   CheckCircle2,
-  Cpu
+  Cpu,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const STORAGE_KEY = 'agilo-dashboard-conversations';
 
 const createConversationTitle = (query: string) => {
   const cleaned = query.trim().replace(/\s+/g, ' ');
@@ -56,25 +58,17 @@ const createConversationTitle = (query: string) => {
   return preview || 'New Enterprise Conversation';
 };
 
-const loadStoredConversations = (): ConversationSession[] => {
-  if (typeof window === 'undefined') return INITIAL_CONVERSATIONS;
-
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return INITIAL_CONVERSATIONS;
-
-    const parsed = JSON.parse(stored) as ConversationSession[];
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_CONVERSATIONS;
-  } catch {
-    return INITIAL_CONVERSATIONS;
-  }
-};
 
 export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const [conversations, setConversations] = useState<ConversationSession[]>(loadStoredConversations);
-  const [activeSessionId, setActiveSessionId] = useState<string>(() => loadStoredConversations()[0]?.id ?? 'session-1');
+  const [conversations, setConversations] = useState<ConversationSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  // isChatActive = user is in the chat view (either a real session or a pending new chat)
   const [isChatActive, setIsChatActive] = useState<boolean>(false);
+  // pendingNewChat = user clicked "New Chat" but hasn't sent a message yet (no session created)
+  const [pendingNewChat, setPendingNewChat] = useState<boolean>(false);
+  // pendingMessages = messages typed in a pending new chat before the session is created
+  const [pendingMessages, setPendingMessages] = useState<Message[]>([]);
 
   const [selectedSource, setSelectedSource] = useState<SourceCitation | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -94,8 +88,15 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiKeyStatus, setGeminiKeyStatus] = useState<GeminiApiKeyStatus | null>(null);
+  const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false);
+  const [geminiKeyMessage, setGeminiKeyMessage] = useState('');
 
-  const activeSession = conversations.find(c => c.id === activeSessionId) || conversations[0];
+  // activeSession: if in pendingNewChat mode, use a virtual empty session; otherwise look up the real one
+  const activeSession: ConversationSession = pendingNewChat
+    ? { id: '__pending__', title: 'New Chat', updatedAt: 'Just now', messages: pendingMessages }
+    : (conversations.find(c => c.id === activeSessionId) ?? { id: '', title: '', updatedAt: '', messages: [] });
 const handleSendMessage = async (queryText: string) => {
     if (!queryText.trim() || isGenerating) return;
 
@@ -111,18 +112,22 @@ const handleSendMessage = async (queryText: string) => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    setConversations(prev => prev.map(conv => {
-      if (conv.id === activeSessionId) {
-        const shouldRename = conv.messages.length === 0 && (conv.title === 'New Enterprise Conversation' || conv.title.startsWith('New Chat'));
-        return {
-          ...conv,
-          title: shouldRename ? createConversationTitle(queryText) : conv.title,
-          messages: [...conv.messages, userMsg],
-          updatedAt: 'Just now'
-        };
-      }
-      return conv;
-    }));
+    if (pendingNewChat) {
+      // In pending mode: optimistically show the user message
+      setPendingMessages(prev => [...prev, userMsg]);
+    } else {
+      // Bubble the active session to the top with the new message
+      setConversations(prev => {
+        const updated = prev.map(conv =>
+          conv.id === activeSessionId
+            ? { ...conv, messages: [...conv.messages, userMsg], updatedAt: 'Just now' }
+            : conv
+        );
+        const active = updated.find(c => c.id === activeSessionId);
+        const rest = updated.filter(c => c.id !== activeSessionId);
+        return active ? [active, ...rest] : updated;
+      });
+    }
 
     setIsGenerating(true);
     setCurrentToolStep('Analyzing request...');
@@ -135,12 +140,9 @@ const handleSendMessage = async (queryText: string) => {
           setCurrentToolStep(step);
         },
         token,
-        activeSessionIdNumber
+        // Pass null when pending so the backend auto-creates a new session
+        pendingNewChat ? null : activeSessionIdNumber
       );
-
-      if (activeSessionIdNumber === null && response.sessionId !== null) {
-        setActiveSessionIdNumber(response.sessionId);
-      }
 
       const assistantMsg: Message = {
         id: `msg-ai-${Date.now()}`,
@@ -152,44 +154,81 @@ const handleSendMessage = async (queryText: string) => {
         sources: response.sources
       };
 
-      setConversations(prev => prev.map(conv => {
-        if (conv.id === activeSessionId) {
-          return {
-            ...conv,
-            messages: [...conv.messages, assistantMsg],
-            updatedAt: 'Just now'
-          };
+      if (pendingNewChat && response.sessionId !== null && response.sessionId !== undefined) {
+        // Server created a real session — convert from pending to a real conversation
+        const newServerId = `server-session-${response.sessionId}`;
+        const newConv: ConversationSession = {
+          id: newServerId,
+          title: createConversationTitle(queryText),
+          updatedAt: 'Just now',
+          messages: [...pendingMessages, userMsg, assistantMsg],
+        };
+        setConversations(prev => [newConv, ...prev]);
+        setActiveSessionId(newServerId);
+        setActiveSessionIdNumber(response.sessionId);
+        setPendingNewChat(false);
+        setPendingMessages([]);
+      } else if (pendingNewChat) {
+        // Session id wasn't returned but still clear pending state gracefully
+        setPendingMessages(prev => [...prev, assistantMsg]);
+      } else {
+        if (activeSessionIdNumber === null && response.sessionId !== null) {
+          setActiveSessionIdNumber(response.sessionId);
         }
-        return conv;
-      }));
+        // Bubble the session to the top and update its timestamp
+        setConversations(prev => {
+          const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const updated = prev.map(conv =>
+            conv.id === activeSessionId
+              ? { ...conv, messages: [...conv.messages, assistantMsg], updatedAt: now }
+              : conv
+          );
+          const active = updated.find(c => c.id === activeSessionId);
+          const rest = updated.filter(c => c.id !== activeSessionId);
+          return active ? [active, ...rest] : updated;
+        });
+      }
     } finally {
       setIsGenerating(false);
       setCurrentToolStep('');
     }
   };
+  const handleNewChat = () => {
+    // Lazy creation: don't create a backend session or add anything to the list.
+    // Simply mark that we are in "pending new chat" mode. A real session is
+    // created automatically by /ask when the user sends their first message.
+    setActiveSessionIdNumber(null);
+    setPendingNewChat(true);
+    setPendingMessages([]);
+    setActiveSessionId('');
+    setIsChatActive(true);
+    setActivityView('home');
+  };
 
-  const handleNewChat = async () => {
+  const handleDeleteChat = async (localId: string) => {
+    if (!localId.startsWith('server-session-')) return;
+    if (!window.confirm('Permanently delete this chat and all of its messages? This cannot be undone.')) return;
+
+    const sessionId = Number(localId.replace('server-session-', ''));
     const token = localStorage.getItem('agilo-access-token') || undefined;
-    const newId = `session-${Date.now()}`;
-    const newSession: ConversationSession = {
-      id: newId,
-      title: 'New Enterprise Conversation',
-      updatedAt: 'Just now',
-      messages: []
-    };
-
     try {
-      const session = await createChatSession(token);
-      setActiveSessionIdNumber(session.id);
-    } catch (error) {
-      console.error('Unable to create server session', error);
-    }
+      await deleteChatSession(sessionId, token);
+      const remaining = conversations.filter((conversation) => conversation.id !== localId);
+      setConversations(remaining);
+      setHistorySessions((sessions) => sessions.filter((session) => session.id !== sessionId));
 
-    setConversations(prev => [newSession, ...prev]);
-    setActiveSessionId(newId);
-    setIsChatActive(false);
-    setActivityView('home');
-    setActivityView('home');
+      if (activeSessionId === localId) {
+        setActiveSessionIdNumber(null);
+        setActiveSessionId('');
+        setPendingNewChat(true);
+        setPendingMessages([]);
+        setIsChatActive(true);
+        setActivityView('home');
+      }
+    } catch (error) {
+      console.error('Unable to delete chat', error);
+      window.alert('Unable to delete this chat. Please try again.');
+    }
   };
 
   const refreshHistory = async () => {
@@ -207,6 +246,7 @@ const handleSendMessage = async (queryText: string) => {
         }))
       );
 
+      // Only keep real server sessions — no local ghost sessions
       const mapped: ConversationSession[] = sessions.map((session) => ({
         id: `server-session-${session.id}`,
         title: session.title || 'Untitled conversation',
@@ -214,12 +254,7 @@ const handleSendMessage = async (queryText: string) => {
         messages: []
       }));
 
-      setConversations((prev) => {
-        const localOnly = prev.filter(
-          (item) => !item.id.startsWith('server-session-') && item.messages.length === 0
-        );
-        return [...mapped, ...localOnly];
-      });
+      setConversations(mapped);
     } catch (error) {
       console.error('Unable to load sessions', error);
     } finally {
@@ -277,6 +312,32 @@ const handleSendMessage = async (queryText: string) => {
     }
   };
 
+  const refreshGeminiKeyStatus = async () => {
+    const token = localStorage.getItem('agilo-access-token') || undefined;
+    try {
+      setGeminiKeyStatus(await getGeminiApiKeyStatus(token));
+    } catch (error) {
+      console.error('Unable to load Gemini key status', error);
+    }
+  };
+
+  const handleSaveGeminiKey = async () => {
+    if (!geminiApiKey.trim()) return;
+    const token = localStorage.getItem('agilo-access-token') || undefined;
+    setIsSavingGeminiKey(true);
+    setGeminiKeyMessage('');
+    try {
+      const status = await saveGeminiApiKey(geminiApiKey.trim(), token);
+      setGeminiKeyStatus(status);
+      setGeminiApiKey('');
+      setGeminiKeyMessage('Gemini API key saved securely.');
+    } catch (error) {
+      setGeminiKeyMessage(error instanceof Error ? error.message : 'Unable to save Gemini API key.');
+    } finally {
+      setIsSavingGeminiKey(false);
+    }
+  };
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -299,17 +360,15 @@ const handleSendMessage = async (queryText: string) => {
     }
   };
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-    }
-  }, [conversations]);
+  // NOTE: localStorage persistence removed — sessions now live exclusively on the backend.
+  // The sidebar is always populated from the server via refreshHistory().
 
   useEffect(() => {
     refreshHistory();
     refreshDocuments();
     refreshUsage();
     refreshCurrentUser();
+    refreshGeminiKeyStatus();
   }, []);
 
   const filteredHistory = historySessions.filter(s =>
@@ -341,9 +400,11 @@ const handleSendMessage = async (queryText: string) => {
         conversations={conversations}
         activeSessionId={activeSessionId}
         onSelectSession={(id) => {
+          // Dismiss any pending new chat when user selects a real session
+          setPendingNewChat(false);
+          setPendingMessages([]);
           setActiveSessionId(id);
           setIsChatActive(true);
-          setActivityView('home');
           setActivityView('home');
 
           if (id.startsWith('server-session-')) {
@@ -356,6 +417,7 @@ const handleSendMessage = async (queryText: string) => {
             }
           }
         }}
+        onDeleteSession={handleDeleteChat}
         onNewChat={handleNewChat}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -472,7 +534,21 @@ const handleSendMessage = async (queryText: string) => {
 
                       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold text-agilo-secondary">
                         <span>{new Date(session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="text-agilo-primary font-bold hover:underline">Open Session →</span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteChat(`server-session-${session.id}`);
+                            }}
+                            className="flex items-center gap-1 text-red-500 hover:text-red-700 transition-colors"
+                            title="Delete chat permanently"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                          <span className="text-agilo-primary font-bold hover:underline">Open Session →</span>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -570,6 +646,38 @@ const handleSendMessage = async (queryText: string) => {
               </div>
 
               <div className="grid gap-6 md:grid-cols-2">
+                <div className="rounded-2xl border border-agilo-border bg-white p-6 shadow-sm space-y-4 md:col-span-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-agilo-cyan/20 flex items-center justify-center text-agilo-navy">
+                      <Cpu className="w-4.5 h-4.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-agilo-navy">Personal Gemini API Key</h4>
+                      <span className="text-xs text-agilo-secondary">Used only for your uploads and document chats</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="password"
+                      value={geminiApiKey}
+                      onChange={(event) => setGeminiApiKey(event.target.value)}
+                      placeholder={geminiKeyStatus?.configured ? `Current key: ${geminiKeyStatus.masked_key}` : 'Paste your Gemini API key'}
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-agilo-border rounded-xl text-xs text-agilo-navy placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-agilo-primary"
+                    />
+                    <button
+                      onClick={handleSaveGeminiKey}
+                      disabled={!geminiApiKey.trim() || isSavingGeminiKey}
+                      className="px-4 py-2 rounded-xl bg-agilo-primary text-white text-xs font-bold disabled:opacity-40 hover:bg-agilo-deep transition-colors"
+                    >
+                      {isSavingGeminiKey ? 'Saving...' : 'Save Key'}
+                    </button>
+                  </div>
+                  <p className={`text-[11px] ${geminiKeyMessage.includes('saved') ? 'text-agilo-success' : 'text-agilo-secondary'}`}>
+                    {geminiKeyMessage || (geminiKeyStatus?.configured ? `Configured (${geminiKeyStatus.masked_key}). The full key is never shown again.` : 'No key configured. Add one before uploading documents or asking document questions.')}
+                  </p>
+                </div>
+
                 <div className="rounded-2xl border border-agilo-border bg-white p-6 shadow-sm space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-agilo-primary/10 flex items-center justify-center text-agilo-primary">
@@ -841,7 +949,8 @@ const handleSendMessage = async (queryText: string) => {
               onOpenSource={(source) => setSelectedSource(source)}
               isGenerating={isGenerating}
               currentToolStep={currentToolStep}
-              onUploadClick={() => console.log("Upload clicked")} // <-- ADD THIS LINE
+              onUploadClick={handleUploadClick}
+              isUploading={uploading}
             />
           )}
         </main>

@@ -52,6 +52,29 @@ def get_session(
     return session
 
 
+@router.delete("/{session_id}")
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently delete one of the current user's chat sessions and messages."""
+    session = (
+        db.query(ChatSession)
+        .filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    db.query(ChatMessage).filter(ChatMessage.session_id == session.id).delete(
+        synchronize_session=False
+    )
+    db.delete(session)
+    db.commit()
+    return {"status": "deleted"}
+
+
 @router.post("/messages/{message_id}/feedback")
 def submit_feedback(
     message_id: int,

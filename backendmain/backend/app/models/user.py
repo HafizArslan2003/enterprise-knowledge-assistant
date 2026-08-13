@@ -13,3 +13,4 @@ class User(Base):
     email = Column(String, unique=True, index=True)
 
     hashed_password = Column(String)
+    encrypted_gemini_api_key = Column(String, nullable=True)

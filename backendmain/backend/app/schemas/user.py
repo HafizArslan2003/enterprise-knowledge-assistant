@@ -14,3 +14,12 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class GeminiApiKeyUpdate(BaseModel):
+    api_key: str
+
+
+class GeminiApiKeyStatus(BaseModel):
+    configured: bool
+    masked_key: str | None = None
