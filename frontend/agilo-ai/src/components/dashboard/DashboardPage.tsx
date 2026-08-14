@@ -102,6 +102,16 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
 const handleSendMessage = async (queryText: string) => {
     if (!queryText.trim() || isGenerating) return;
 
+    // A question can be sent from the dashboard prompt without clicking
+    // "New Chat" first. Treat it exactly like a pending new conversation so
+    // the backend response is attached to a visible session.
+    const isStartingNewSession = pendingNewChat || !activeSessionId;
+    const previousPendingMessages = pendingMessages;
+
+    if (isStartingNewSession && !pendingNewChat) {
+      setPendingNewChat(true);
+    }
+
     if (!isChatActive) {
       setIsChatActive(true);
     }
@@ -114,7 +124,7 @@ const handleSendMessage = async (queryText: string) => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    if (pendingNewChat) {
+    if (isStartingNewSession) {
       // In pending mode: optimistically show the user message
       setPendingMessages(prev => [...prev, userMsg]);
     } else {
@@ -143,7 +153,7 @@ const handleSendMessage = async (queryText: string) => {
         },
         token,
         // Pass null when pending so the backend auto-creates a new session
-        pendingNewChat ? null : activeSessionIdNumber
+        isStartingNewSession ? null : activeSessionIdNumber
       );
 
       const assistantMsg: Message = {
@@ -156,23 +166,24 @@ const handleSendMessage = async (queryText: string) => {
         sources: response.sources
       };
 
-      if (pendingNewChat && response.sessionId !== null && response.sessionId !== undefined) {
+      if (isStartingNewSession && response.sessionId !== null && response.sessionId !== undefined) {
         // Server created a real session — convert from pending to a real conversation
         const newServerId = `server-session-${response.sessionId}`;
         const newConv: ConversationSession = {
           id: newServerId,
           title: createConversationTitle(queryText),
           updatedAt: 'Just now',
-          messages: [...pendingMessages, userMsg, assistantMsg],
+          messages: [...previousPendingMessages, userMsg, assistantMsg],
         };
         setConversations(prev => [newConv, ...prev]);
         setActiveSessionId(newServerId);
         setActiveSessionIdNumber(response.sessionId);
         setPendingNewChat(false);
         setPendingMessages([]);
-      } else if (pendingNewChat) {
-        // Session id wasn't returned but still clear pending state gracefully
-        setPendingMessages(prev => [...prev, assistantMsg]);
+      } else if (isStartingNewSession) {
+        // Preserve the visible conversation if the server did not return an ID.
+        setPendingNewChat(true);
+        setPendingMessages([...previousPendingMessages, userMsg, assistantMsg]);
       } else {
         if (activeSessionIdNumber === null && response.sessionId !== null) {
           setActiveSessionIdNumber(response.sessionId);
