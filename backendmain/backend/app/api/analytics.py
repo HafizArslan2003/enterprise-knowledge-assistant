@@ -73,8 +73,25 @@ def get_usage_stats(
         )
         points.append(UsagePoint(label=day.strftime("%a"), value=count))
 
-    total_questions = sum(point.value for point in points)
-    automation_rate = min(100, int(round((total_questions / max(1, len(points) * 6)) * 100)))
+    # Automation is a completed assistant response to a submitted user question.
+    # This replaces the old synthetic "six questions per day" capacity formula.
+    total_questions = (
+        db.query(ChatMessage)
+        .join(ChatSession)
+        .filter(ChatSession.user_id == current_user.id, ChatMessage.role == "user")
+        .count()
+    )
+    automated_responses = (
+        db.query(ChatMessage)
+        .join(ChatSession)
+        .filter(ChatSession.user_id == current_user.id, ChatMessage.role == "assistant")
+        .count()
+    )
+    automation_rate = (
+        min(100, int(round((automated_responses / total_questions) * 100)))
+        if total_questions
+        else 0
+    )
 
     return UsageSummary(
         labels=[point.label for point in points],

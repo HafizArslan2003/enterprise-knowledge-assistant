@@ -42,11 +42,15 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
   // Generate SVG path for smooth trend line
   const svgWidth = 600;
   const svgHeight = 120;
-  const points = values.map((val, idx) => {
-    const x = (idx / (values.length - 1)) * svgWidth;
+  const chartPoints = values.map((val, idx) => {
+    const x = values.length > 1 ? (idx / (values.length - 1)) * svgWidth : svgWidth / 2;
     const y = svgHeight - (val / maxValue) * (svgHeight - 20) - 10;
-    return `${x},${y}`;
-  }).join(' ');
+    return { x, y };
+  });
+  const points = chartPoints.map(({ x, y }) => `${x},${y}`).join(' ');
+  const hoveredPoint = hoveredIdx === null ? null : chartPoints[hoveredIdx];
+  const hoveredLabel = hoveredIdx === null ? null : labels[hoveredIdx];
+  const hoveredValue = hoveredIdx === null ? null : values[hoveredIdx] ?? 0;
 
   return (
     <div className="w-full h-full p-6 lg:p-8 overflow-y-auto overscroll-contain space-y-6 font-sans">
@@ -87,7 +91,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
               { label: 'Total Documents', value: summary.total_documents, icon: FileText, color: 'text-agilo-primary', bg: 'bg-agilo-primary/10' },
               { label: 'Chat Sessions', value: summary.total_sessions, icon: MessagesSquare, color: 'text-agilo-bright', bg: 'bg-agilo-bright/10' },
               { label: 'Questions Asked', value: summary.total_questions_asked, icon: LayoutGrid, color: 'text-agilo-cyan', bg: 'bg-agilo-cyan/10' },
-              { label: 'Automation Rate', value: `${usage?.automation_rate ?? 94}%`, icon: TrendingUp, color: 'text-agilo-success', bg: 'bg-agilo-success/10' },
+              { label: 'Automation Rate', value: usage ? `${usage.automation_rate}%` : '—', icon: TrendingUp, color: 'text-agilo-success', bg: 'bg-agilo-success/10' },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -119,7 +123,11 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
 
             {/* Smooth SVG Trend Line Curve */}
             <div className="w-full h-24 bg-slate-50 rounded-xl p-3 border border-agilo-border/60 relative overflow-hidden">
-              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible">
+              <svg
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                className="w-full h-full overflow-visible"
+                onMouseLeave={() => setHoveredIdx(null)}
+              >
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#2563EB" stopOpacity="0.3" />
@@ -128,6 +136,39 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
                 </defs>
                 <polygon points={`0,${svgHeight} ${points} ${svgWidth},${svgHeight}`} fill="url(#chartGradient)" />
                 <polyline points={points} fill="none" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                {hoveredPoint && hoveredLabel && hoveredValue !== null && (
+                  <g pointerEvents="none">
+                    <line
+                      x1={hoveredPoint.x}
+                      x2={hoveredPoint.x}
+                      y1="0"
+                      y2={svgHeight}
+                      stroke="#2563EB"
+                      strokeWidth="1"
+                      strokeDasharray="4 4"
+                      opacity="0.45"
+                    />
+                    <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="5" fill="white" stroke="#2563EB" strokeWidth="3" />
+                    <g transform={`translate(${Math.min(Math.max(hoveredPoint.x - 65, 0), svgWidth - 130)}, 2)`}>
+                      <rect width="130" height="24" rx="6" fill="#0B1F3A" />
+                      <text x="65" y="16" textAnchor="middle" fill="white" fontSize="11" fontWeight="700">
+                        {hoveredLabel}: {hoveredValue} {hoveredValue === 1 ? 'query' : 'queries'}
+                      </text>
+                    </g>
+                  </g>
+                )}
+                {chartPoints.map((point, idx) => (
+                  <circle
+                    key={labels[idx] ?? idx}
+                    cx={point.x}
+                    cy={point.y}
+                    r="14"
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredIdx(idx)}
+                    aria-label={`${labels[idx]}: ${values[idx] ?? 0} queries`}
+                  />
+                ))}
               </svg>
             </div>
 
@@ -148,7 +189,9 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onClose }) => {
                     {/* Tooltip on Hover */}
                     {isHovered && (
                       <div className="absolute -top-10 bg-agilo-navy text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-lg z-20 whitespace-nowrap animate-fade-in">
-                        {value} queries
+                        <span>{label}</span>
+                        <span className="mx-1 text-slate-300">•</span>
+                        <span>{value} {value === 1 ? 'query' : 'queries'}</span>
                       </div>
                     )}
 

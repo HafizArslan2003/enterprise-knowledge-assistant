@@ -10,6 +10,7 @@ import {
   getUsageStats,
   listDocuments,
   uploadDocument,
+  deleteDocument,
   listSessions,
   getSessionDetail,
   deleteChatSession,
@@ -79,6 +80,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [historySessions, setHistorySessions] = useState<ChatHistorySession[]>([]);
   const [historySearch, setHistorySearch] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(null);
   const [documents, setDocuments] = useState<DocumentUploadResponse[]>([]);
   const [docSearch, setDocSearch] = useState<string>('');
   const [usageStats, setUsageStats] = useState<UsageSummary | null>(null);
@@ -203,6 +205,20 @@ const handleSendMessage = async (queryText: string) => {
     setActiveSessionId('');
     setIsChatActive(true);
     setActivityView('home');
+  };
+
+  const handleNavigate = (view: ActivityView) => {
+    if (view === 'home') {
+      // The Dashboard link returns to the overview rather than reopening the
+      // current (or unsent) chat. Existing server chats remain in the sidebar.
+      setIsChatActive(false);
+      setPendingNewChat(false);
+      setPendingMessages([]);
+      setActiveSessionId('');
+      setActiveSessionIdNumber(null);
+    }
+
+    setActivityView(view);
   };
 
   const handleDeleteChat = async (localId: string) => {
@@ -360,6 +376,24 @@ const handleSendMessage = async (queryText: string) => {
     }
   };
 
+  const handleDeleteDocument = async (document: DocumentUploadResponse) => {
+    if (!window.confirm(`Permanently delete \"${document.filename}\" and all of its indexed data? This cannot be undone.`)) {
+      return;
+    }
+
+    const token = localStorage.getItem('agilo-access-token') || undefined;
+    setDeletingDocumentId(document.id);
+    try {
+      await deleteDocument(document.id, token);
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+    } catch (error) {
+      console.error('Unable to delete document', error);
+      window.alert(error instanceof Error ? error.message : 'Unable to delete this document. Please try again.');
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
   // NOTE: localStorage persistence removed — sessions now live exclusively on the backend.
   // The sidebar is always populated from the server via refreshHistory().
 
@@ -424,7 +458,7 @@ const handleSendMessage = async (queryText: string) => {
         isLoadingSessions={isLoadingSessions}
         currentUsername={currentUser?.username}
         activeView={activityView}
-        onNavigate={(view) => setActivityView(view)}
+        onNavigate={handleNavigate}
       />
 
       {/* Right Main Shell Area — Header and Footer locked shrink-0 */}
@@ -485,9 +519,11 @@ const handleSendMessage = async (queryText: string) => {
                 </div>
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={historySearch}
+                    <input
+                      type="text"
+                      name="history-search"
+                      autoComplete="off"
+                      value={historySearch}
                     onChange={(e) => setHistorySearch(e.target.value)}
                     placeholder="Search history..."
                     className="w-full pl-9 pr-3 py-1.5 bg-white border border-agilo-border rounded-xl text-xs text-agilo-navy placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-agilo-primary"
@@ -569,6 +605,8 @@ const handleSendMessage = async (queryText: string) => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                     <input
                       type="text"
+                      name="document-search"
+                      autoComplete="off"
                       value={docSearch}
                       onChange={(e) => setDocSearch(e.target.value)}
                       placeholder="Filter documents..."
@@ -619,6 +657,16 @@ const handleSendMessage = async (queryText: string) => {
                             </span>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDocument(doc)}
+                          disabled={deletingDocumentId === doc.id}
+                          title={`Delete ${doc.filename}`}
+                          className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="sr-only">Delete document</span>
+                        </button>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] font-semibold text-agilo-secondary pt-2 border-t border-slate-100">
@@ -660,6 +708,8 @@ const handleSendMessage = async (queryText: string) => {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       type="password"
+                      name="gemini-api-key"
+                      autoComplete="new-password"
                       value={geminiApiKey}
                       onChange={(event) => setGeminiApiKey(event.target.value)}
                       placeholder={geminiKeyStatus?.configured ? `Current key: ${geminiKeyStatus.masked_key}` : 'Paste your Gemini API key'}
@@ -919,7 +969,7 @@ const handleSendMessage = async (queryText: string) => {
                   <div className="flex items-end justify-between gap-4">
                     <div>
                       <div className="text-3xl font-extrabold text-agilo-navy tracking-tight">
-                        {usageStats?.automation_rate ?? 0}%
+                        {usageStats ? `${usageStats.automation_rate}%` : '—'}
                       </div>
                       <span className="text-xs text-agilo-secondary font-medium">Tasks Automated</span>
                       <div className="text-[11px] font-semibold text-agilo-success flex items-center gap-1 mt-1">

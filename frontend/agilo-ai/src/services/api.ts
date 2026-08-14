@@ -253,6 +253,14 @@ export async function listDocuments(token?: string) {
   return request<DocumentUploadResponse[]>('/api/v1/documents/', { method: 'GET' }, token);
 }
 
+export async function deleteDocument(documentId: number, token?: string) {
+  return request<{ status: string }>(
+    `/api/v1/documents/${documentId}`,
+    { method: 'DELETE' },
+    token
+  );
+}
+
 // NEW: GET /api/v1/analytics/summary
 export async function getAnalyticsSummary(token?: string) {
   return request<AnalyticsSummary>('/api/v1/analytics/summary', { method: 'GET' }, token);

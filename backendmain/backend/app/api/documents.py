@@ -1,4 +1,5 @@
-import os
+from pathlib import Path
+from uuid import uuid4
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 
@@ -14,8 +15,8 @@ from backend.app.core.api_key_crypto import decrypt_api_key
 
 router = APIRouter()
 
-UPLOAD_DIR = "storage/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = Path("storage/uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = (".pdf", ".docx", ".xlsx")
 
@@ -60,15 +61,16 @@ def upload_document(
         raise HTTPException(status_code=400, detail="Add your Gemini API key in Settings before uploading documents")
 
     try:
-        filepath = os.path.join(UPLOAD_DIR, file.filename)
+        # Use a unique path so same-named uploads cannot overwrite one another.
+        filepath = UPLOAD_DIR / f"{uuid4().hex}_{Path(file.filename).name}"
         with open(filepath, "wb") as f:
             f.write(file.file.read())
 
-        full_text_by_page = extract_text_by_page(filepath, file.filename)
+        full_text_by_page = extract_text_by_page(str(filepath), file.filename)
 
         new_document = Document(
             filename=file.filename,
-            filepath=filepath,
+            filepath=str(filepath),
             uploaded_by=current_user.id,
         )
         db.add(new_document)
@@ -107,3 +109,51 @@ def upload_document(
         db.rollback()
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Upload error: {e}")
+
+
+@router.delete("/{document_id}")
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently remove the user's document, its chunks, and its upload."""
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.uploaded_by == current_user.id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    filepath = document.filepath
+    # Existing records may share a legacy filename/path. Remove the physical file
+    # only after the last record that references it is deleted.
+    has_other_file_reference = (
+        db.query(Document)
+        .filter(Document.filepath == filepath, Document.id != document.id)
+        .first()
+        is not None
+    )
+
+    try:
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete(
+            synchronize_session=False
+        )
+        db.delete(document)
+        db.flush()
+
+        if not has_other_file_reference:
+            upload_path = Path(filepath)
+            if upload_path.exists():
+                upload_path.unlink()
+
+        db.commit()
+    except OSError as error:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unable to remove the uploaded file") from error
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unable to delete document")
+
+    return {"status": "deleted"}

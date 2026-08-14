@@ -106,6 +106,7 @@ All routes are prefixed with `/api/v1` except `/` and `/health`.
 |--------|-----------|:---:|-------------|
 | GET    | `/`       | Yes | List documents uploaded by the current user, with chunk counts |
 | POST   | `/upload` | Yes | Upload a `.pdf`, `.docx`, or `.xlsx` file — extracted, chunked, embedded, and indexed |
+| DELETE | `/{document_id}` | Yes | Permanently delete a document, all of its vector chunks, and its uploaded file |
 
 ### Sessions (`/api/v1/sessions`)
 
