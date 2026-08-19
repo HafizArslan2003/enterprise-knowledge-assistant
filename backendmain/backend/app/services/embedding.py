@@ -10,13 +10,37 @@ from openai import OpenAI
 
 EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIMENSIONS = 768
-GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+GEMINI_BASE_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/openai/"
+)
 
-# Keep timeout while debugging so a request cannot hang forever.
 REQUEST_TIMEOUT = 15.0
-
-# Don't automatically retry while we are debugging.
 MAX_RETRIES = 0
+
+
+# =========================================================
+# Gemini Client
+# =========================================================
+
+def _create_client(api_key: str) -> OpenAI:
+    """
+    Create the Gemini OpenAI-compatible client.
+
+    We validate the key before making the request so that
+    configuration errors are caught immediately.
+    """
+
+    if not api_key or not api_key.strip():
+        raise ValueError(
+            "Gemini API key is missing or empty."
+        )
+
+    return OpenAI(
+        api_key=api_key.strip(),
+        base_url=GEMINI_BASE_URL,
+        timeout=REQUEST_TIMEOUT,
+        max_retries=MAX_RETRIES,
+    )
 
 
 # =========================================================
@@ -58,17 +82,12 @@ def _get_cached_embedding(
     try:
 
         # -------------------------------------------------
-        # Create Gemini client
+        # Create client
         # -------------------------------------------------
 
         client_start = time.time()
 
-        client = OpenAI(
-            api_key=api_key,
-            base_url=GEMINI_BASE_URL,
-            timeout=REQUEST_TIMEOUT,
-            max_retries=MAX_RETRIES,
-        )
+        client = _create_client(api_key)
 
         print(
             f"🔧 OpenAI client created in "
@@ -105,12 +124,23 @@ def _get_cached_embedding(
         # -------------------------------------------------
 
         if not response.data:
-            raise ValueError("Gemini returned an empty embedding response.")
+            raise RuntimeError(
+                "Gemini returned an empty embedding response."
+            )
 
         embedding = response.data[0].embedding
 
         if not embedding:
-            raise ValueError("Gemini returned an empty embedding vector.")
+            raise RuntimeError(
+                "Gemini returned an empty embedding vector."
+            )
+
+        if len(embedding) != EMBEDDING_DIMENSIONS:
+            raise RuntimeError(
+                "Invalid embedding dimension. "
+                f"Expected {EMBEDDING_DIMENSIONS}, "
+                f"received {len(embedding)}."
+            )
 
         print(
             f"📊 Embedding vector size: "
@@ -121,7 +151,7 @@ def _get_cached_embedding(
         print("✅ EMBEDDING SUCCESS")
         print("=" * 60 + "\n")
 
-        return tuple(embedding)
+        return tuple(float(value) for value in embedding)
 
     except Exception as e:
 
@@ -149,8 +179,15 @@ def _get_cached_embedding(
         print("=" * 60 + "\n")
 
         # IMPORTANT:
-        # We keep the same 768 dimensions expected by pgvector.
-        return tuple([0.0] * EMBEDDING_DIMENSIONS)
+        # NEVER return a zero vector.
+        #
+        # A zero vector would make the rest of the RAG
+        # pipeline believe that embedding generation worked.
+        #
+        # Instead, propagate the real error.
+        raise RuntimeError(
+            "Gemini embedding generation failed."
+        ) from e
 
 
 # =========================================================
@@ -165,23 +202,29 @@ def get_embedding(
 ) -> list[float]:
 
     """
-    Generate a Gemini embedding for the provided text.
+    Generate a Gemini embedding.
 
-    The query text is normalized before embedding.
-
-    If use_cache=True, repeated identical queries are served
-    from the in-memory cache.
+    Raises an exception if embedding generation fails.
+    Never returns a fake/zero embedding.
     """
 
     # -----------------------------------------------------
-    # Validate input
+    # Validate API key
     # -----------------------------------------------------
 
-    if not api_key:
-        print("❌ get_embedding() received an empty API key.")
+    if not api_key or not api_key.strip():
+        raise ValueError(
+            "Gemini API key is missing or empty."
+        )
+
+    # -----------------------------------------------------
+    # Validate text
+    # -----------------------------------------------------
 
     if not text or not text.strip():
-        print("⚠️ get_embedding() received empty text.")
+        raise ValueError(
+            "Cannot generate embedding for empty text."
+        )
 
     # -----------------------------------------------------
     # Normalize text
@@ -202,19 +245,21 @@ def get_embedding(
 
         print("💾 Cache enabled.")
 
-        # Check whether this exact request is already cached.
-        cache_before = _get_cached_embedding.cache_info()
+        cache_before = (
+            _get_cached_embedding.cache_info()
+        )
 
         embedding = _get_cached_embedding(
-            api_key,
+            api_key.strip(),
             normalized_text,
         )
 
-        cache_after = _get_cached_embedding.cache_info()
+        cache_after = (
+            _get_cached_embedding.cache_info()
+        )
 
         if cache_after.hits > cache_before.hits:
             print("⚡ Embedding returned from CACHE.")
-
         else:
             print("🌐 Embedding retrieved from Gemini API.")
 
@@ -225,18 +270,15 @@ def get_embedding(
     # =====================================================
 
     print("🚫 Cache disabled.")
-    print("🚀 Starting non-cached Gemini embedding request...")
+    print(
+        "🚀 Starting non-cached Gemini embedding request..."
+    )
 
     start = time.time()
 
     try:
 
-        client = OpenAI(
-            api_key=api_key,
-            base_url=GEMINI_BASE_URL,
-            timeout=REQUEST_TIMEOUT,
-            max_retries=MAX_RETRIES,
-        )
+        client = _create_client(api_key)
 
         response = client.embeddings.create(
             model=EMBEDDING_MODEL,
@@ -251,16 +293,27 @@ def get_embedding(
             f"{elapsed:.2f} seconds"
         )
 
+        # -------------------------------------------------
+        # Validate response
+        # -------------------------------------------------
+
         if not response.data:
-            raise ValueError(
+            raise RuntimeError(
                 "Gemini returned an empty embedding response."
             )
 
         embedding = response.data[0].embedding
 
         if not embedding:
-            raise ValueError(
+            raise RuntimeError(
                 "Gemini returned an empty embedding vector."
+            )
+
+        if len(embedding) != EMBEDDING_DIMENSIONS:
+            raise RuntimeError(
+                "Invalid embedding dimension. "
+                f"Expected {EMBEDDING_DIMENSIONS}, "
+                f"received {len(embedding)}."
             )
 
         print(
@@ -268,7 +321,10 @@ def get_embedding(
             f"{len(embedding)}"
         )
 
-        return list(embedding)
+        return [
+            float(value)
+            for value in embedding
+        ]
 
     except Exception as e:
 
@@ -289,4 +345,8 @@ def get_embedding(
             f"{e}"
         )
 
-        return [0.0] * EMBEDDING_DIMENSIONS
+        # IMPORTANT:
+        # Do not return [0.0] * 768.
+        raise RuntimeError(
+            "Gemini embedding generation failed."
+        ) from e

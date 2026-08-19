@@ -28,3 +28,7 @@ Thumbs.db
 
 # Node.js (later for React)
 node_modules/
+
+# Uploaded documents
+# Uploaded documents
+/storage/uploads/
