@@ -50,6 +50,7 @@ export interface UserResponse {
   id: number;
   username: string;
   email: string;
+  role: 'admin' | 'employee';
 }
 
 export interface GeminiApiKeyStatus {
@@ -268,4 +269,14 @@ export async function getAnalyticsSummary(token?: string) {
 
 export async function getUsageStats(token?: string) {
   return request<UsageSummary>('/api/v1/analytics/usage', { method: 'GET' }, token);
+}
+
+export async function viewDocument(documentId: number, token?: string) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/view`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
+  if (!response.ok) throw new Error("Failed to view document");
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  window.open(url, "_blank");
 }

@@ -130,7 +130,7 @@ def ask_question(
             if not api_key:
                 raise HTTPException(status_code=400, detail="Add your Gemini API key in Settings before asking document questions")
             answer, sources, source_doc_ids_str = answer_document_question(
-                db, request.question, current_user.id, api_key
+                db, request.question, current_user, api_key
             )
 
         # 4. Save the assistant's answer, including any documents it used.
@@ -152,9 +152,9 @@ def ask_question(
         raise HTTPException(status_code=500, detail=f"Error generating answer: {str(e)}")
 
 
-def answer_document_question(db: Session, question: str, user_id: int, api_key: str):
+def answer_document_question(db: Session, question: str, user: User, api_key: str):
     """Run the slow RAG path only for questions that require documents."""
-    results = search_documents(db, question, api_key, top_k=settings.RAG_TOP_K, user_id=user_id)
+    results = search_documents(db, question, api_key, top_k=settings.RAG_TOP_K, user=user)
     if not results:
         return REFUSAL_MESSAGE, [], None
 
@@ -162,7 +162,7 @@ def answer_document_question(db: Session, question: str, user_id: int, api_key: 
         f"[Source: {chunk.document.filename}, Page {chunk.page_number}]\n{chunk.text}"
         for chunk, _ in results
     )
-    answer = get_grounded_response(api_key, question, context_text)
+    answer = get_grounded_response(api_key, question, context_text, user_role=user.role)
     if not answer:
         return "The AI service is currently unavailable. Please try again shortly.", [], None
     if REFUSAL_MESSAGE in answer:
@@ -231,27 +231,27 @@ def _legacy_ask_question(
             if message.role in {"user", "assistant"}
         ]
 
-        # 4. Search only documents uploaded by the authenticated user.
-        results = search_documents(db, request.question, top_k=settings.RAG_TOP_K, user_id=current_user.id)
+        # 4. Search documents based on user role
+        results = search_documents(db, request.question, api_key="", top_k=settings.RAG_TOP_K, user=current_user)
 
         source_doc_ids_str = None
         sources = []
 
         if not results:
-            generated = get_grounded_response(request.question, "", history)
+            generated = get_grounded_response(api_key, request.question, "", history, user_role=current_user.role)
             answer = (
                 generated.replace("<documents_used>true</documents_used>", "")
                 .replace("<documents_used>false</documents_used>", "")
                 .strip()
                 if generated
-                else "The AI service is currently unavailable. Please try again shortly."
+                else REFUSAL_MESSAGE
             )
         else:
-            context_text = "\n\n---\n\n".join(
+            context_text = "\n\n".join(
                 f"[Source: {chunk.document.filename}, Page {chunk.page_number}]\n{chunk.text}"
                 for chunk, _ in results
             )
-            generated = get_grounded_response(request.question, context_text, history)
+            generated = get_grounded_response(api_key, request.question, context_text, history, user_role=current_user.role)
 
             if generated:
                 uses_documents = "<documents_used>true</documents_used>" in generated.lower()

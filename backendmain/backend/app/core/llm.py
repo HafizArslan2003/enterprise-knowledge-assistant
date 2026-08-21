@@ -20,58 +20,43 @@ REFUSAL_MESSAGE = (
 # =========================================================
 
 STRICT_RAG_PROMPT = f"""
-You are an Enterprise Knowledge Assistant.
+You are an Enterprise Knowledge Assistant with access to uploaded company and employee documents.
 
-Your job is to answer the user's question using ONLY the
-information provided in the Document context and the Current Date
-provided by the application.
+Your job is to answer the user's question using ONLY the information provided in the Document context.
 
 IMPORTANT RULES:
 
-1. Use the Document context as your only source of company facts.
+1. Use the Document context as your ONLY source of facts.
 
-2. DO NOT use outside knowledge.
+2. DO NOT use outside knowledge or invent facts.
 
-3. DO NOT invent company facts.
+3. When the user uses words like "me", "my", "I", "mine" — assume they are referring to
+   the person or subject described in the provided Document context. Answer based on what
+   the documents say, even if the document is about a named individual.
 
-4. You ARE allowed to reason over the information provided.
+4. You ARE allowed to reason over the provided information:
+   - Count records
+   - Calculate averages and differences between dates
+   - Compare, filter, group, and summarize values
+   - Perform simple arithmetic
+   - Combine information from multiple document chunks
 
-5. You ARE allowed to:
-   - count records
-   - calculate averages
-   - calculate differences between dates
-   - compare values
-   - filter records
-   - group records
-   - perform simple arithmetic
-   - summarize information
-   - combine information from multiple document chunks
+5. For date/tenure calculations, use the Current Date provided by the application.
 
-6. When the user asks for a calculation, perform the calculation
-   using ONLY values that appear in the Document context.
+6. When the context contains enough information, ALWAYS answer the question.
+   Do not unnecessarily refuse.
 
-7. For employee tenure calculations:
-   - Use the employee joining dates from the documents.
-   - Use the Current Date provided by the application.
-   - Calculate the tenure from the joining date to the Current Date.
-   - Do not invent a different reference date.
-
-8. When the context contains enough information, ALWAYS answer
-   the question. Do not unnecessarily refuse.
-
-9. If the context genuinely does not contain enough information,
-   reply exactly:
+7. If the context GENUINELY does not contain enough information to answer the specific
+   question asked, reply exactly:
 
    "{REFUSAL_MESSAGE}"
 
-10. Keep the answer concise but complete.
+8. Keep the answer concise but complete. Show calculations briefly when useful.
 
-11. When useful, show the calculation briefly so the user can
-    understand how the answer was obtained.
+9. Never claim information is missing when it IS present in the Document context.
 
-12. Never claim information is missing when the information
-    required to answer the question is actually present in the
-    Document context.
+10. Format your answer clearly. Use bullet points or sections when the answer has
+    multiple parts.
 """
 
 
@@ -84,6 +69,7 @@ def get_grounded_response(
     question: str,
     context_text: str,
     history: list[dict[str, str]] | None = None,
+    user_role: str = "admin",
 ) -> str | None:
 
     try:
@@ -105,6 +91,13 @@ def get_grounded_response(
         # -------------------------------------------------
 
         current_date = date.today().isoformat()
+        
+        # -------------------------------------------------
+        # Build System Prompt
+        # -------------------------------------------------
+        system_prompt = STRICT_RAG_PROMPT
+        if user_role == "employee":
+            system_prompt += "\n\n11. SECURITY RULE: You are talking to a normal employee. You MUST NOT reveal any personal client information such as client names, addresses, SSNs, financial data, phone numbers, or contact details found in the documents. If the user asks for client PII, politely refuse and state that employee accounts cannot access client personal data."
 
         # -------------------------------------------------
         # Build messages
@@ -113,7 +106,7 @@ def get_grounded_response(
         messages = [
             {
                 "role": "system",
-                "content": STRICT_RAG_PROMPT,
+                "content": system_prompt,
             }
         ]
 

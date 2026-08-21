@@ -9,11 +9,12 @@ import {
   ShieldCheck,
   FileText,
   Loader2,
-  LayoutDashboard,
-  BookOpen,
   BarChart3,
   History,
-  Trash2
+  Trash2,
+  MessageSquare,
+  Database,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -29,6 +30,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   isLoadingSessions?: boolean;
   currentUsername?: string;
+  currentUserRole?: 'admin' | 'employee';
   activeView: ActivityView;
   onNavigate: (view: ActivityView) => void;
 }
@@ -43,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   isLoadingSessions,
   currentUsername,
+  currentUserRole,
   activeView,
   onNavigate
 }) => {
@@ -57,11 +60,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     : 'HI';
 
   const navItems = [
-    { id: 'home' as ActivityView, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'documents' as ActivityView, label: 'Knowledge Base', icon: BookOpen },
-    { id: 'analytics' as ActivityView, label: 'Analytics', icon: BarChart3 },
-    { id: 'history' as ActivityView, label: 'Chat History', icon: History },
-    { id: 'settings' as ActivityView, label: 'Settings', icon: Settings },
+    { id: 'home' as ActivityView, label: 'Dashboard', icon: MessageSquare },
+    { id: 'documents' as ActivityView, label: currentUserRole === 'employee' ? 'My Documents' : 'Knowledge Base', icon: Database },
+    ...(currentUserRole === 'admin' ? [{ id: 'analytics' as ActivityView, label: 'Analytics', icon: BarChart3 }] : []),
+    { id: 'history' as ActivityView, label: 'History', icon: History },
+    { id: 'settings' as ActivityView, label: 'Settings', icon: SettingsIcon },
   ];
 
   return (

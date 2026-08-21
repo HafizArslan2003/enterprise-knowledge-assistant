@@ -50,10 +50,18 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
     # Safely truncate password bytes to prevent passlib/bcrypt 72-byte restriction crash
     safe_password = user_in.password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
     
+    # Automatically assign role based on username or provided role
+    user_role = "employee"
+    if user_in.username.lower() == "admin" or "admin" in user_in.username.lower():
+        user_role = "admin"
+    if user_in.role in ["admin", "employee"]:
+        user_role = user_in.role
+        
     new_user = User(
         email=user_in.email,
         username=user_in.username,
-        hashed_password=get_password_hash(safe_password)
+        hashed_password=get_password_hash(safe_password),
+        role=user_role
     )
     
     db.add(new_user)

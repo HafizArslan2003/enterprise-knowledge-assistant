@@ -21,17 +21,27 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_EXTENSIONS = (".pdf", ".docx", ".xlsx")
 
 
+from fastapi.responses import FileResponse
+
 @router.get("/", response_model=list[DocumentResponse])
 def list_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    documents = (
-        db.query(Document)
-        .filter(Document.uploaded_by == current_user.id)
-        .order_by(Document.uploaded_at.desc())
-        .all()
-    )
+    if current_user.role == "admin":
+        documents = (
+            db.query(Document)
+            .filter(Document.type == "company")
+            .order_by(Document.uploaded_at.desc())
+            .all()
+        )
+    else:
+        documents = (
+            db.query(Document)
+            .filter(Document.type == "private", Document.uploaded_by == current_user.id)
+            .order_by(Document.uploaded_at.desc())
+            .all()
+        )
 
     return [
         DocumentResponse(
@@ -42,6 +52,7 @@ def list_documents(
         )
         for document in documents
     ]
+
 
 
 @router.post("/upload", response_model=DocumentResponse)
@@ -68,9 +79,11 @@ def upload_document(
 
         full_text_by_page = extract_text_by_page(str(filepath), file.filename)
 
+        doc_type = "company" if current_user.role == "admin" else "private"
         new_document = Document(
             filename=file.filename,
             filepath=str(filepath),
+            type=doc_type,
             uploaded_by=current_user.id,
         )
         db.add(new_document)
@@ -117,18 +130,17 @@ def delete_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Permanently remove the user's document, its chunks, and its upload."""
-    document = (
-        db.query(Document)
-        .filter(Document.id == document_id, Document.uploaded_by == current_user.id)
-        .first()
-    )
+    """Permanently remove a document."""
+    document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+        
+    if current_user.role == "admin" and document.type != "company":
+        raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+    if current_user.role == "employee" and document.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this document")
 
     filepath = document.filepath
-    # Existing records may share a legacy filename/path. Remove the physical file
-    # only after the last record that references it is deleted.
     has_other_file_reference = (
         db.query(Document)
         .filter(Document.filepath == filepath, Document.id != document.id)
@@ -157,3 +169,21 @@ def delete_document(
         raise HTTPException(status_code=500, detail="Unable to delete document")
 
     return {"status": "deleted"}
+
+
+@router.get("/{document_id}/view")
+def view_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    if current_user.role == "admin" and document.type != "company":
+        raise HTTPException(status_code=403, detail="Not authorized to view this document")
+    if current_user.role == "employee" and document.type == "private" and document.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this document")
+
+    return FileResponse(document.filepath, filename=document.filename)

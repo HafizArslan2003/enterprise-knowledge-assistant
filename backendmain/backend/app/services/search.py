@@ -18,12 +18,14 @@ def cosine_distance_to_similarity_percent(
     return round(similarity * 100.0, 1)
 
 
+from backend.app.models.user import User
+
 def search_documents(
     db: Session,
     query: str,
     api_key: str,
     top_k: int = DEFAULT_FINAL_CHUNKS,
-    user_id: int | None = None,
+    user: User | None = None,
 ):
     """
     Search document chunks using Gemini embeddings + pgvector.
@@ -40,8 +42,8 @@ def search_documents(
     print(f"❓ Query: {query}")
     print(f"🎯 Requested final chunks: {top_k}")
 
-    if user_id is not None:
-        print(f"👤 User ID: {user_id}")
+    if user is not None:
+        print(f"👤 User ID: {user.id} ({user.role})")
 
     if not query or not query.strip():
         print("❌ Empty query.")
@@ -103,17 +105,64 @@ def search_documents(
         .join(DocumentChunk.document)
     )
 
-    if user_id is not None:
-        candidates_query = candidates_query.filter(
-            Document.uploaded_by == user_id
-        )
+    if user is not None:
+        if user.role == "admin":
+            candidates_query = candidates_query.filter(
+                Document.type == "company"
+            )
+            candidates = (
+                candidates_query
+                .order_by(distance_expression)
+                .limit(candidate_pool_size)
+                .all()
+            )
+        else:
+            # For employees: run TWO separate searches
+            # 1) Their own private docs (always include ALL of them for relevance)
+            from sqlalchemy import or_
+            private_query = candidates_query.filter(
+                Document.type == "private",
+                Document.uploaded_by == user.id
+            )
+            private_candidates = (
+                private_query
+                .order_by(distance_expression)
+                .limit(candidate_pool_size)
+                .all()
+            )
 
-    candidates = (
-        candidates_query
-        .order_by(distance_expression)
-        .limit(candidate_pool_size)
-        .all()
-    )
+            # 2) Company docs
+            company_query = (
+                db.query(
+                    DocumentChunk,
+                    distance_expression.label("distance"),
+                )
+                .join(DocumentChunk.document)
+                .filter(Document.type == "company")
+            )
+            company_candidates = (
+                company_query
+                .order_by(distance_expression)
+                .limit(candidate_pool_size)
+                .all()
+            )
+
+            # Merge: private docs take priority slots, then fill with company docs
+            private_ids = {chunk.id for chunk, _ in private_candidates}
+            combined = list(private_candidates)
+            for item in company_candidates:
+                if item[0].id not in private_ids:
+                    combined.append(item)
+
+            # Sort combined by distance
+            candidates = sorted(combined, key=lambda x: float(x[1]))[:candidate_pool_size]
+    else:
+        candidates = (
+            candidates_query
+            .order_by(distance_expression)
+            .limit(candidate_pool_size)
+            .all()
+        )
 
     print(
         f"⏱️ Database search completed in "
@@ -168,7 +217,24 @@ def search_documents(
         reverse=True,
     )
 
-    selected = scored_candidates[:top_k]
+    # For employees: guarantee that their private doc chunks are included
+    # even if company docs rank higher in similarity. Reserve at least
+    # half of top_k slots for private docs if the user has any.
+    if user is not None and user.role == "employee":
+        private_scored = [c for c in scored_candidates if c["chunk"].document.type == "private"]
+        company_scored = [c for c in scored_candidates if c["chunk"].document.type != "private"]
+
+        if private_scored:
+            # Give private docs at least half the slots (minimum 1)
+            private_slots = max(1, top_k // 2)
+            company_slots = top_k - min(len(private_scored), private_slots)
+            selected = private_scored[:private_slots] + company_scored[:company_slots]
+            # Re-sort the selected by similarity
+            selected.sort(key=lambda item: item["similarity"], reverse=True)
+        else:
+            selected = scored_candidates[:top_k]
+    else:
+        selected = scored_candidates[:top_k]
 
     # --------------------------------------------------------
     # 5. DEBUG RESULTS

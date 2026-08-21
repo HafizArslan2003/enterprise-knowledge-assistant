@@ -9,6 +9,7 @@ class Document(Base):
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String, nullable=False)
     filepath = Column(String, nullable=False)
+    type = Column(String, default="private")  # "company" or "private"
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     access_count = Column(Integer, default=0, nullable=False)

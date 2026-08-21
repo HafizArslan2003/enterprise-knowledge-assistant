@@ -6,11 +6,13 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    role: str | None = None
 
 class UserResponse(UserBase):
     id: int
     username: str
     email: EmailStr
+    role: str
 
     class Config:
         from_attributes = True

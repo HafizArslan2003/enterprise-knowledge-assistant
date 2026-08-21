@@ -17,6 +17,7 @@ import {
   getCurrentUser,
   getGeminiApiKeyStatus,
   saveGeminiApiKey,
+  viewDocument,
   type ChatHistorySession,
   type DocumentUploadResponse,
   type UsageSummary,
@@ -468,6 +469,7 @@ const handleSendMessage = async (queryText: string) => {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isLoadingSessions={isLoadingSessions}
         currentUsername={currentUser?.username}
+        currentUserRole={currentUser?.role}
         activeView={activityView}
         onNavigate={handleNavigate}
       />
@@ -607,8 +609,12 @@ const handleSendMessage = async (queryText: string) => {
             <div className="w-full h-full p-6 lg:p-8 overflow-y-auto overscroll-contain space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">Enterprise Knowledge Base</h2>
-                  <p className="text-xs text-agilo-secondary mt-0.5 font-medium">Uploaded documents indexed for vector RAG retrieval</p>
+                  <h2 className="text-xl font-extrabold text-agilo-navy tracking-tight">
+                    {currentUser?.role === 'employee' ? 'My Private Documents' : 'Enterprise Knowledge Base'}
+                  </h2>
+                  <p className="text-xs text-agilo-secondary mt-0.5 font-medium">
+                    {currentUser?.role === 'employee' ? 'Upload and manage your private documents' : 'Uploaded company documents indexed for vector RAG retrieval'}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -649,8 +655,8 @@ const handleSendMessage = async (queryText: string) => {
               {filteredDocuments.length === 0 ? (
                 <div className="rounded-2xl border border-agilo-border bg-white/80 p-12 text-center shadow-sm">
                   <BookOpen className="w-8 h-8 text-agilo-secondary mx-auto mb-2 opacity-50" />
-                  <p className="text-sm font-semibold text-agilo-navy">No documents indexed yet</p>
-                  <p className="text-xs text-agilo-secondary mt-1">Upload files above to populate your Enterprise Knowledge Base</p>
+                  <p className="text-sm font-semibold text-agilo-navy">No documents found</p>
+                  <p className="text-xs text-agilo-secondary mt-1">Upload files above to populate your knowledge base</p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -662,7 +668,13 @@ const handleSendMessage = async (queryText: string) => {
                             <FileText className="w-4.5 h-4.5" />
                           </div>
                           <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-agilo-navy truncate">{doc.filename}</h4>
+                            <button
+                              onClick={() => viewDocument(doc.id, localStorage.getItem('agilo-access-token') || undefined)}
+                              className="text-xs font-bold text-agilo-navy truncate hover:text-agilo-primary text-left cursor-pointer transition-colors"
+                              title="Click to view document"
+                            >
+                              {doc.filename}
+                            </button>
                             <span className="text-[10px] text-agilo-secondary block">
                               Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
                             </span>

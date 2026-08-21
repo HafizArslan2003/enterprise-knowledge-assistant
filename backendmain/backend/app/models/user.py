@@ -14,3 +14,4 @@ class User(Base):
 
     hashed_password = Column(String)
     encrypted_gemini_api_key = Column(String, nullable=True)
+    role = Column(String, default="employee")
