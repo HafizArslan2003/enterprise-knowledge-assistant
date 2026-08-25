@@ -1,0 +1,32 @@
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from pgvector.sqlalchemy import Vector
+from backend.app.database.base import Base
+
+class Document(Base):
+    __tablename__ = "documents"
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    filepath = Column(String, nullable=False)
+    # "private"    -> only visible to the employee who uploaded it
+    # "company"    -> visible to employees and admins
+    # "restricted" -> admin-only (e.g. sensitive client records, finance data)
+    type = Column(String, default="private")
+    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    access_count = Column(Integer, default=0, nullable=False)
+    feedback_score = Column(Integer, default=0, nullable=False)
+    chunks = relationship("DocumentChunk", back_populates="document")
+
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"))
+    text = Column(String, nullable=False)
+    page_number = Column(Integer, nullable=True)
+    chunk_index = Column(Integer, nullable=False)
+    embedding = Column(Vector(384))  # all-MiniLM-L6-v2 local embedding size
+
+    document = relationship("Document", back_populates="chunks")
