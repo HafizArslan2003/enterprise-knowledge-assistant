@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # Database Configuration
     # Note: Ensure 'password' is replaced with your actual pgAdmin master password
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/eka"
+    DATABASE_URL: str 
 
     # Security & JWT Authentication
     SECRET_KEY: str = "change-this-in-production"
