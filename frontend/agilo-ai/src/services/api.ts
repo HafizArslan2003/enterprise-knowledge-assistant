@@ -236,9 +236,10 @@ export async function submitMessageFeedback(messageId: number, feedback: 1 | -1,
   );
 }
 
-export async function uploadDocument(file: File, token?: string) {
+export async function uploadDocument(file: File, token?: string, restricted: boolean = false) {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('restricted', String(restricted));
 
   return request<DocumentUploadResponse>(
     '/api/v1/documents/upload',

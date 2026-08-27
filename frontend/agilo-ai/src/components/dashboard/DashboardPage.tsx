@@ -95,6 +95,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [geminiKeyStatus, setGeminiKeyStatus] = useState<GeminiApiKeyStatus | null>(null);
   const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false);
   const [geminiKeyMessage, setGeminiKeyMessage] = useState('');
+  const [isRestrictedUpload, setIsRestrictedUpload] = useState(false);
 
   // activeSession: if in pendingNewChat mode, use a virtual empty session; otherwise look up the real one
   const activeSession: ConversationSession = pendingNewChat
@@ -377,9 +378,10 @@ const handleSendMessage = async (queryText: string) => {
     const token = localStorage.getItem('agilo-access-token') || undefined;
     setUploading(true);
     try {
-      await uploadDocument(file, token);
+      await uploadDocument(file, token, isRestrictedUpload);
       await refreshDocuments();
       setActivityView('documents');
+      setIsRestrictedUpload(false);
     } catch (error) {
       console.error('Upload failed', error);
     } finally {
@@ -643,13 +645,31 @@ const handleSendMessage = async (queryText: string) => {
               </div>
 
               {/* Upload Drop Zone Banner */}
-              <div
-                onClick={handleUploadClick}
-                className="rounded-2xl border-2 border-dashed border-agilo-primary/30 bg-agilo-primary/5 p-6 text-center hover:bg-agilo-primary/10 transition-colors cursor-pointer"
-              >
-                <Upload className="w-7 h-7 text-agilo-primary mx-auto mb-2" />
-                <span className="text-xs font-bold text-agilo-navy block">Click to upload files to vector store</span>
-                <span className="text-[11px] text-agilo-secondary block mt-0.5">Supports PDF, DOCX, TXT, and MD documents</span>
+              <div className="space-y-3">
+                {currentUser?.role === 'admin' && (
+                  <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900">
+                    <input
+                      type="checkbox"
+                      id="restricted-upload-toggle"
+                      checked={isRestrictedUpload}
+                      onChange={(e) => setIsRestrictedUpload(e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="restricted-upload-toggle" className="cursor-pointer select-none">
+                      🔒 <strong>Restricted Document (Admin Only):</strong> Hide from employee searches (e.g. confidential executive/financial records).
+                    </label>
+                  </div>
+                )}
+                <div
+                  onClick={handleUploadClick}
+                  className="rounded-2xl border-2 border-dashed border-agilo-primary/30 bg-agilo-primary/5 p-6 text-center hover:bg-agilo-primary/10 transition-colors cursor-pointer"
+                >
+                  <Upload className="w-7 h-7 text-agilo-primary mx-auto mb-2" />
+                  <span className="text-xs font-bold text-agilo-navy block">
+                    Click to upload {isRestrictedUpload ? '🔒 Restricted (Admin Only)' : '📄 Company'} file to vector store
+                  </span>
+                  <span className="text-[11px] text-agilo-secondary block mt-0.5">Supports PDF, DOCX, TXT, and MD documents</span>
+                </div>
               </div>
 
               {filteredDocuments.length === 0 ? (
