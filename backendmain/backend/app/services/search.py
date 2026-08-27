@@ -225,7 +225,7 @@ def search_documents(
     )
 
     # Apply minimum similarity threshold filtering (drop irrelevant/calculus chunks)
-    MIN_SIMILARITY = 45.0  # Equivalent to cosine distance <= 0.55
+    MIN_SIMILARITY = 47.0  # Equivalent to cosine distance <= 0.53
     filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
 
     if not filtered_candidates:

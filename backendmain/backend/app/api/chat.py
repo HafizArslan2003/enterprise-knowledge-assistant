@@ -293,14 +293,7 @@ def _legacy_ask_question(
         sources = []
 
         if not results:
-            generated = get_grounded_response(api_key, request.question, "", history, user_role=current_user.role)
-            answer = (
-                generated.replace("<documents_used>true</documents_used>", "")
-                .replace("<documents_used>false</documents_used>", "")
-                .strip()
-                if generated
-                else REFUSAL_MESSAGE
-            )
+            answer = REFUSAL_MESSAGE
         else:
             context_text = "\n\n".join(
                 f"[Source: {chunk.document.filename}, Page {chunk.page_number}]\n{chunk.text}"

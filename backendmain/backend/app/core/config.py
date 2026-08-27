@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     QUERY_EMBEDDING_CACHE_SIZE: int = 256
     RAG_TOP_K: int = 5
     RAG_HISTORY_TURNS: int = 6
-    RAG_MAX_OUTPUT_TOKENS: int = 4096
+    RAG_MAX_OUTPUT_TOKENS: int = 1024
 
     # Database Configuration
     # Note: Ensure 'password' is replaced with your actual pgAdmin master password

@@ -184,12 +184,10 @@ def get_grounded_response(
         )
 
         response = client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
+            model="llama-3.1-8b-instant",
             messages=messages,
             temperature=0.2,
             max_tokens=settings.RAG_MAX_OUTPUT_TOKENS,
-            reasoning_effort="none",
-            extra_body={"reasoning_format": "hidden"},
         )
 
         elapsed = time.time() - start
