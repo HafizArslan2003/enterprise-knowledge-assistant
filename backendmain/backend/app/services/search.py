@@ -224,12 +224,20 @@ def search_documents(
         reverse=True,
     )
 
+    # Apply minimum similarity threshold filtering (drop irrelevant/calculus chunks)
+    MIN_SIMILARITY = 45.0  # Equivalent to cosine distance <= 0.55
+    filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
+
+    if not filtered_candidates:
+        print(f"⚠️ All {len(scored_candidates)} candidates were below minimum similarity threshold ({MIN_SIMILARITY}%).")
+        return []
+
     # For employees: guarantee that their private doc chunks are included
     # even if company docs rank higher in similarity. Reserve at least
     # half of top_k slots for private docs if the user has any.
     if user is not None and user.role == "employee":
-        private_scored = [c for c in scored_candidates if c["chunk"].document.type == "private"]
-        company_scored = [c for c in scored_candidates if c["chunk"].document.type != "private"]
+        private_scored = [c for c in filtered_candidates if c["chunk"].document.type == "private"]
+        company_scored = [c for c in filtered_candidates if c["chunk"].document.type != "private"]
 
         if private_scored:
             # Give private docs at least half the slots (minimum 1)
@@ -239,9 +247,9 @@ def search_documents(
             # Re-sort the selected by similarity
             selected.sort(key=lambda item: item["similarity"], reverse=True)
         else:
-            selected = scored_candidates[:top_k]
+            selected = filtered_candidates[:top_k]
     else:
-        selected = scored_candidates[:top_k]
+        selected = filtered_candidates[:top_k]
 
     # --------------------------------------------------------
     # 5. DEBUG RESULTS
