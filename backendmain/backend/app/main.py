@@ -27,6 +27,7 @@ app.add_middleware(
     "http://localhost:5174",
     "http://localhost:3000",
     "https://enterprise-knowledge-assistant-rho-cyan.vercel.app",
+    "https://enterprise-knowledge-assistant-9krc8w4ls-eka15.vercel.app",
 ],
     allow_credentials=True,
     allow_methods=["*"],
