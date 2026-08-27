@@ -1,12 +1,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.health import router as health_router
 from backend.app.core.config import settings
 from backend.app.database.database import create_tables
 from backend.app.api import auth, chat, documents, sessions, analytics
-from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -20,15 +20,16 @@ app = FastAPI(
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_origins=[
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:3000",
-    "https://enterprise-knowledge-assistant-rho-cyan.vercel.app",
-    "https://enterprise-knowledge-assistant-9krc8w4ls-eka15.vercel.app",
-],
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
