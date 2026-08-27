@@ -225,12 +225,32 @@ def search_documents(
     )
 
     # Apply minimum similarity threshold filtering (drop irrelevant/calculus chunks)
-    MIN_SIMILARITY = 47.0  # Equivalent to cosine distance <= 0.53
+    #
+    # NOTE: This was previously 47.0%, tuned for a hosted embedding model.
+    # The system now uses local all-MiniLM-L6-v2 (384-dim) embeddings
+    # (see services/embedding.py), which score meaningfully lower on
+    # cosine similarity for genuinely relevant short/sparse chunks
+    # (payslip fields, client records, etc.) — real matches were observed
+    # landing around 30-50%. The old 47% floor was silently discarding
+    # correct retrievals before they ever reached the LLM, producing
+    # false "not found" refusals. 30% is a safer floor for this model
+    # while still filtering out truly unrelated content.
+    MIN_SIMILARITY = 30.0  # tuned for all-MiniLM-L6-v2 local embeddings
+
     filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
 
     if not filtered_candidates:
-        print(f"⚠️ All {len(scored_candidates)} candidates were below minimum similarity threshold ({MIN_SIMILARITY}%).")
-        return []
+        # Don't hard-fail to an empty result. Fall back to the best-scoring
+        # candidates even if under threshold, so borderline-but-relevant
+        # matches still reach the LLM — which can judge relevance itself
+        # and decline in the answer text if truly irrelevant, rather than
+        # the retrieval layer silently refusing everything upstream.
+        fallback_count = min(3, len(scored_candidates))
+        print(
+            f"⚠️ All {len(scored_candidates)} candidates were below "
+            f"{MIN_SIMILARITY}% — falling back to best {fallback_count} candidate(s)."
+        )
+        filtered_candidates = scored_candidates[:fallback_count]
 
     # For employees: guarantee that their private doc chunks are included
     # even if company docs rank higher in similarity. Reserve at least
