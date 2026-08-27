@@ -184,7 +184,7 @@ def get_grounded_response(
         )
 
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="openai/gpt-oss-20b",
             messages=messages,
             temperature=0.2,
             max_tokens=settings.RAG_MAX_OUTPUT_TOKENS,
