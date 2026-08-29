@@ -251,7 +251,7 @@ def search_documents(
     # Apply minimum similarity threshold filtering
     # The hybrid boost ensures that low-vector-scoring chunks with exact 
     # keyword matches can survive this filter.
-    MIN_SIMILARITY = 30.0  # tuned for all-MiniLM-L6-v2 local embeddings + hybrid boost
+    MIN_SIMILARITY = 20.0  # tuned for all-MiniLM-L6-v2 local embeddings + hybrid boost
 
     filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
 

@@ -66,8 +66,9 @@ refuse a chunk just because it looks confidential if it's tagged as the
 user's own.
 
 IMPORTANT GROUNDING RULE:
-If you answer the user's question using the provided DOCUMENT CONTEXT, you MUST append the exact string <documents_used>true</documents_used> to the very end of your response.
-If you answer using general knowledge (like a greeting), or if you refuse because the documents lack the information, you MUST append <documents_used>false</documents_used> to the very end of your response.
+1. If you answer the user's question using the provided DOCUMENT CONTEXT, you MUST append the exact string <documents_used>true</documents_used> to the very end of your response.
+2. If you answer using general knowledge (like a greeting), or if you refuse because the documents lack the information, you MUST append <documents_used>false</documents_used> to the very end of your response.
+3. If <documents_used> is true, you MUST also output a <sources> tag containing a comma-separated list of the exact "Source" filenames you actually used to formulate your answer. For example: <sources>Employee_Handbook.pdf, Leave_Policy.pdf</sources>. ONLY list the files you genuinely used.
 
 Output only the final answer for the user — no reasoning, no <think> tags,
 no meta-commentary about documents, retrieval, tags, or how you found the

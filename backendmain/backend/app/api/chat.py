@@ -246,6 +246,16 @@ def answer_document_question(db: Session, question: str, user: User, api_key: st
         # LLM answered from general knowledge or refused; do not attach citations
         return answer, [], None
 
+    # Parse and strip the <sources> tag to filter citations to only those actually used
+    used_filenames = set()
+    sources_match = re.search(r'(?i)<sources>(.*?)</sources>', answer)
+    if sources_match:
+        # Split by comma, clean whitespace, and lowercase for robust matching
+        raw_names = sources_match.group(1).split(',')
+        used_filenames = {name.strip().lower() for name in raw_names if name.strip()}
+    
+    answer = re.sub(r'(?i)<sources>.*?</sources>', '', answer).strip()
+
     raw_sources = [
         {
             "document_name": chunk.document.filename,
@@ -258,6 +268,7 @@ def answer_document_question(db: Session, question: str, user: User, api_key: st
             ),
         }
         for chunk, pct in results
+        if not used_filenames or (chunk.document.filename and chunk.document.filename.lower() in used_filenames)
     ]
     seen = set()
     sources = []
