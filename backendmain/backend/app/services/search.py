@@ -72,15 +72,15 @@ def search_documents(
     embedding_start = time.time()
 
     search_text = query.strip()
-    if history:
-        # Include last assistant and last user message for contextual search
-        recent_context = " ".join([
-            msg["content"] for msg in history[-2:] 
-            if msg.get("content") and msg.get("role") in ("user", "assistant")
-        ])
-        if recent_context:
-            search_text = f"{recent_context} {search_text}"
-
+    
+    # NOTE: We no longer append raw history messages (especially assistant answers)
+    # directly to the embedding search_text. 
+    # Appending a 1500+ character previous answer about "calculus" completely 
+    # diluted the embedding for a new query like "list all clients", 
+    # causing the vector search to return the calculus document at 76% similarity.
+    # The history is still passed to the LLM for answering, but the vector search
+    # will strictly search using the exact current query.
+    
     query_vector = get_embedding(search_text)
 
     print(
