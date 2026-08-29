@@ -1,4 +1,5 @@
 import time
+import re
 
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ def search_documents(
     api_key: str,
     top_k: int = DEFAULT_FINAL_CHUNKS,
     user: User | None = None,
+    history: list[dict[str, str]] | None = None,
 ):
     """
     Search document chunks using local embeddings + pgvector.
@@ -69,7 +71,17 @@ def search_documents(
 
     embedding_start = time.time()
 
-    query_vector = get_embedding(query.strip())
+    search_text = query.strip()
+    if history:
+        # Include last assistant and last user message for contextual search
+        recent_context = " ".join([
+            msg["content"] for msg in history[-2:] 
+            if msg.get("content") and msg.get("role") in ("user", "assistant")
+        ])
+        if recent_context:
+            search_text = f"{recent_context} {search_text}"
+
+    query_vector = get_embedding(search_text)
 
     print(
         f"⏱️ Query embedding completed in "
@@ -186,10 +198,13 @@ def search_documents(
         return []
 
     # --------------------------------------------------------
-    # 3. SCORE CANDIDATES
+    # 3. SCORE CANDIDATES (Hybrid: Vector + Keyword)
     # --------------------------------------------------------
 
     scored_candidates = []
+    
+    # Extract keywords > 3 chars for hybrid text matching
+    query_terms = set(re.findall(r'\b\w{3,}\b', query.lower()))
 
     for rank, (chunk, distance) in enumerate(
         candidates,
@@ -200,17 +215,26 @@ def search_documents(
                 distance
             )
         )
-
-        feedback_score = (
-            chunk.document.feedback_score or 0
-        )
+        
+        # Hybrid Scoring Boost
+        chunk_text_lower = chunk.text.lower() if chunk.text else ""
+        doc_filename_lower = chunk.document.filename.lower() if hasattr(chunk.document, "filename") and chunk.document.filename else ""
+        
+        text_match_count = sum(1 for term in query_terms if term in chunk_text_lower)
+        filename_match_count = sum(1 for term in query_terms if term in doc_filename_lower)
+        
+        # Max +15% for text, Max +5% for filename
+        text_boost = (text_match_count / max(len(query_terms), 1)) * 15.0
+        filename_boost = (filename_match_count / max(len(query_terms), 1)) * 5.0
+        
+        final_similarity = similarity_percent + text_boost + filename_boost
 
         scored_candidates.append(
             {
                 "chunk": chunk,
                 "distance": float(distance),
-                "similarity": similarity_percent,
-                "feedback": feedback_score,
+                "similarity": final_similarity,
+                "original_similarity": similarity_percent,
                 "rank": rank,
             }
         )
@@ -224,33 +248,16 @@ def search_documents(
         reverse=True,
     )
 
-    # Apply minimum similarity threshold filtering (drop irrelevant/calculus chunks)
-    #
-    # NOTE: This was previously 47.0%, tuned for a hosted embedding model.
-    # The system now uses local all-MiniLM-L6-v2 (384-dim) embeddings
-    # (see services/embedding.py), which score meaningfully lower on
-    # cosine similarity for genuinely relevant short/sparse chunks
-    # (payslip fields, client records, etc.) — real matches were observed
-    # landing around 30-50%. The old 47% floor was silently discarding
-    # correct retrievals before they ever reached the LLM, producing
-    # false "not found" refusals. 30% is a safer floor for this model
-    # while still filtering out truly unrelated content.
-    MIN_SIMILARITY = 30.0  # tuned for all-MiniLM-L6-v2 local embeddings
+    # Apply minimum similarity threshold filtering
+    # The hybrid boost ensures that low-vector-scoring chunks with exact 
+    # keyword matches can survive this filter.
+    MIN_SIMILARITY = 30.0  # tuned for all-MiniLM-L6-v2 local embeddings + hybrid boost
 
     filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
 
     if not filtered_candidates:
-        # Don't hard-fail to an empty result. Fall back to the best-scoring
-        # candidates even if under threshold, so borderline-but-relevant
-        # matches still reach the LLM — which can judge relevance itself
-        # and decline in the answer text if truly irrelevant, rather than
-        # the retrieval layer silently refusing everything upstream.
-        fallback_count = min(3, len(scored_candidates))
-        print(
-            f"⚠️ All {len(scored_candidates)} candidates were below "
-            f"{MIN_SIMILARITY}% — falling back to best {fallback_count} candidate(s)."
-        )
-        filtered_candidates = scored_candidates[:fallback_count]
+        print(f"⚠️ No candidates met the {MIN_SIMILARITY}% threshold after boosting. Returning empty result.")
+        return []
 
     # For employees: guarantee that their private doc chunks are included
     # even if company docs rank higher in similarity. Reserve at least
@@ -300,10 +307,6 @@ def search_documents(
         print(
             f"📏 Distance: "
             f"{candidate['distance']:.4f}"
-        )
-        print(
-            f"⭐ Feedback: "
-            f"{candidate['feedback']}"
         )
         print(
             f"🔢 Original vector rank: "

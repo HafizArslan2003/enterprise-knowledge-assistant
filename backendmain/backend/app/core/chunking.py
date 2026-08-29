@@ -3,8 +3,8 @@ import re
 
 def chunk_text(
     text: str,
-    chunk_size: int = 1200,
-    overlap: int = 200,
+    chunk_size: int = 600,
+    overlap: int = 100,
 ) -> list[str]:
     """
     Split text into overlapping chunks while trying to preserve
@@ -56,8 +56,17 @@ def chunk_text(
             target_end,
         )
 
+        # Prefer list item boundary.
+        list_boundary = -1
+        list_matches = list(re.finditer(r"\n(?=[\-*•\d])", text[start:target_end]))
+        if list_matches:
+            list_boundary = start + list_matches[-1].start()
+
         if paragraph_boundary > start + (chunk_size * 0.5):
             end = paragraph_boundary
+            
+        elif list_boundary > start + (chunk_size * 0.5):
+            end = list_boundary
 
         else:
             # Prefer sentence boundary.

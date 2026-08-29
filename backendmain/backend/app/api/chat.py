@@ -166,8 +166,23 @@ def ask_question(
             api_key = decrypt_api_key(current_user.encrypted_gemini_api_key)
             if not api_key:
                 raise HTTPException(status_code=400, detail="Add your Groq API key in Settings before asking document questions")
+            
+            # Fetch conversation history
+            prior_messages = (
+                db.query(ChatMessage)
+                .filter(ChatMessage.session_id == session.id, ChatMessage.id != user_message.id)
+                .order_by(ChatMessage.created_at.desc())
+                .limit(settings.RAG_HISTORY_TURNS)
+                .all()
+            )
+            history = [
+                {"role": message.role, "content": message.content[-1200:]}
+                for message in reversed(prior_messages)
+                if message.role in {"user", "assistant"}
+            ]
+            
             answer, sources, source_doc_ids_str = answer_document_question(
-                db, request.question, current_user, api_key
+                db, request.question, current_user, api_key, history
             )
 
         # 4. Save the assistant's answer, including any documents it used.
@@ -189,9 +204,9 @@ def ask_question(
         raise HTTPException(status_code=500, detail=f"Error generating answer: {str(e)}")
 
 
-def answer_document_question(db: Session, question: str, user: User, api_key: str):
+def answer_document_question(db: Session, question: str, user: User, api_key: str, history: list[dict[str, str]] | None = None):
     """Run the slow RAG path only for questions that require documents."""
-    results = search_documents(db, question, api_key, top_k=settings.RAG_TOP_K, user=user)
+    results = search_documents(db, question, api_key, top_k=settings.RAG_TOP_K, user=user, history=history)
     if not results:
         return REFUSAL_MESSAGE, [], None
 
@@ -216,9 +231,20 @@ def answer_document_question(db: Session, question: str, user: User, api_key: st
         )
     context_text = "\n\n---\n\n".join(context_parts)
 
-    answer = get_grounded_response(api_key, question, context_text, user_role=user.role)
+    answer = get_grounded_response(api_key, question, context_text, history=history, user_role=user.role)
     if not answer:
         return "The AI service is currently unavailable. Please try again shortly.", [], None
+
+    # Parse and strip the <documents_used> tag
+    uses_documents = False
+    if "<documents_used>true</documents_used>" in answer.lower():
+        uses_documents = True
+    
+    answer = re.sub(r'(?i)<documents_used>.*?</documents_used>', '', answer).strip()
+    
+    if not uses_documents:
+        # LLM answered from general knowledge or refused; do not attach citations
+        return answer, [], None
 
     raw_sources = [
         {

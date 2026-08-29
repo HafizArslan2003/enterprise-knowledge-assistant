@@ -75,7 +75,9 @@ def login_access_token(
     db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ):
     safe_password = form_data.password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
-    user = db.query(User).filter(User.username == form_data.username).first()
+    user = db.query(User).filter(
+        (User.username == form_data.username) | (User.email == form_data.username)
+    ).first()
     if not user or not verify_password(safe_password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -65,6 +65,10 @@ specific restricted content — do not refuse the whole question, and never
 refuse a chunk just because it looks confidential if it's tagged as the
 user's own.
 
+IMPORTANT GROUNDING RULE:
+If you answer the user's question using the provided DOCUMENT CONTEXT, you MUST append the exact string <documents_used>true</documents_used> to the very end of your response.
+If you answer using general knowledge (like a greeting), or if you refuse because the documents lack the information, you MUST append <documents_used>false</documents_used> to the very end of your response.
+
 Output only the final answer for the user — no reasoning, no <think> tags,
 no meta-commentary about documents, retrieval, tags, or how you found the
 answer.
