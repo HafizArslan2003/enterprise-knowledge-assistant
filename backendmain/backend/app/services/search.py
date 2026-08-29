@@ -203,8 +203,10 @@ def search_documents(
 
     scored_candidates = []
     
-    # Extract keywords > 3 chars for hybrid text matching
-    query_terms = set(re.findall(r'\b\w{3,}\b', query.lower()))
+    # Extract keywords > 3 chars for hybrid text matching, ignoring common stop words
+    stop_words = {"tell", "about", "what", "this", "that", "give", "show", "find", "have", "with", "from"}
+    raw_terms = set(re.findall(r'\b\w{3,}\b', query.lower()))
+    query_terms = {term for term in raw_terms if term not in stop_words}
 
     for rank, (chunk, distance) in enumerate(
         candidates,
@@ -220,8 +222,15 @@ def search_documents(
         chunk_text_lower = chunk.text.lower() if chunk.text else ""
         doc_filename_lower = chunk.document.filename.lower() if hasattr(chunk.document, "filename") and chunk.document.filename else ""
         
-        text_match_count = sum(1 for term in query_terms if term in chunk_text_lower)
-        filename_match_count = sum(1 for term in query_terms if term in doc_filename_lower)
+        # Looser match: also check singular/plural forms (very basic stemming)
+        text_match_count = 0
+        filename_match_count = 0
+        for term in query_terms:
+            base_term = term[:-1] if term.endswith('s') else term
+            if base_term in chunk_text_lower:
+                text_match_count += 1
+            if base_term in doc_filename_lower:
+                filename_match_count += 1
         
         # Max +15% for text, Max +5% for filename
         text_boost = (text_match_count / max(len(query_terms), 1)) * 15.0

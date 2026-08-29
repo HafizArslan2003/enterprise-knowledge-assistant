@@ -12,6 +12,12 @@ def _get_model():
     if _model is None:
         print("Loading SentenceTransformer model (first time only)...")
         from sentence_transformers import SentenceTransformer
+        import torch
+        
+        # Limit threads to prevent contention on small CPU instances
+        # This drastically speeds up inference in environments like Railway
+        torch.set_num_threads(1)
+        
         _model = SentenceTransformer(EMBEDDING_MODEL)
         print("Model loaded successfully.")
     return _model
