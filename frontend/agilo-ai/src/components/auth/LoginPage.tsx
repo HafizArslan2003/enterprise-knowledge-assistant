@@ -70,358 +70,358 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const isAdmin = mode === 'admin_login';
 
   return (
-    <main className={`h-screen w-full flex items-center justify-center p-2 sm:p-4 overflow-hidden ${isAdmin ? 'bg-black' : 'bg-[#0B1F3A]'}`}>
-      <div className={`relative w-full max-w-[1400px] h-full max-h-[820px] rounded-2xl overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,0.35)] ${isAdmin ? 'border border-slate-800' : 'border border-white/10'}`}>
-        <div className="relative flex h-full w-full flex-col lg:flex-row">
-          
-          {/* LEFT PANEL */}
-          <div className={`hidden lg:flex w-[46%] h-full relative items-center justify-center overflow-hidden p-10 ${isAdmin ? 'bg-[#0a0a0a]' : ''}`}>
-            {!isAdmin && (
-              <>
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      'linear-gradient(135deg, #0B1F3A 0%, #1D4ED8 55%, #2563EB 75%, #38BDF8 100%)',
-                  }}
-                />
-                <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-[#38BDF8]/20 blur-3xl animate-pulseGlow" />
-                <div className="absolute bottom-1/4 right-1/4 h-64 w-64 rounded-full bg-[#22D3EE]/15 blur-3xl animate-pulseGlow" />
-                <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:36px_36px]" />
-              </>
-            )}
-            {isAdmin && (
-              <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" />
-            )}
+    <main className={`relative min-h-screen w-full flex items-center justify-center p-4 overflow-hidden transition-colors duration-1000 ${isAdmin ? 'bg-[#050505]' : 'bg-[#0f172a]'}`}>
+      
+      {/* Dynamic Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {isAdmin ? (
+          <>
+            {/* Admin Background: Cyber/Matrix vibe */}
+            <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:40px_40px]" />
+            <motion.div 
+              animate={{ 
+                backgroundPosition: ['0% 0%', '100% 100%'],
+                opacity: [0.3, 0.5, 0.3]
+              }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_50%)]"
+            />
+            {/* Moving scanline */}
+            <motion.div
+              animate={{ top: ['-10%', '110%'] }}
+              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/20 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+            />
+          </>
+        ) : (
+          <>
+            {/* Employee Background: Soft, vibrant glowing orbs */}
+            <div className="absolute inset-0 bg-[#0f172a]" />
+            <motion.div
+              animate={{ 
+                x: [0, 100, -100, 0],
+                y: [0, -100, 100, 0],
+                scale: [1, 1.2, 0.8, 1]
+              }}
+              transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px]"
+            />
+            <motion.div
+              animate={{ 
+                x: [0, -150, 150, 0],
+                y: [0, 150, -150, 0],
+                scale: [1, 0.8, 1.2, 1]
+              }}
+              transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-indigo-500/20 rounded-full blur-[120px]"
+            />
+            <motion.div
+              animate={{ 
+                scale: [1, 1.5, 1],
+                opacity: [0.3, 0.6, 0.3]
+              }}
+              transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-sky-400/10 rounded-full blur-[100px]"
+            />
+          </>
+        )}
+      </div>
 
-            <div className="relative z-10 flex flex-col justify-between w-full h-full">
-              <motion.div
-                initial={{ opacity: 0, y: -15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="flex items-center gap-3"
-              >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${isAdmin ? 'bg-slate-800 text-white' : 'bg-white/15 border border-white/25 backdrop-blur-md'}`}>
-                  {isAdmin ? <Shield className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
-                </div>
-                <span className="text-xl font-extrabold tracking-tight text-white">AGILO AI</span>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.7, delay: 0.1 }}
-                className="max-w-lg"
-              >
-                <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-3 ${isAdmin ? 'bg-slate-800 text-slate-300' : 'bg-white/15 text-white border border-white/25 backdrop-blur-md'}`}>
-                  {isAdmin ? 'System Administration' : 'Enterprise AI Assistant'}
-                </span>
-                <h2 className="text-3xl xl:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  {isAdmin ? 'Secure access to system controls.' : "Intelligent answers from your organization's knowledge."}
-                </h2>
-                <p className="text-white/70 text-sm max-w-md pt-3 leading-relaxed">
-                  {isAdmin ? 'Manage users, view system metrics, and control document indices.' : 'Grounded RAG retrieval, real-time tool calling, and verified citations.'}
-                </p>
-              </motion.div>
-
-              <div className="flex items-center gap-5 text-[11px] font-semibold text-white/75">
-                <span className="flex items-center gap-1.5"><Shield className={`w-3.5 h-3.5 ${isAdmin ? 'text-slate-400' : 'text-[#BFE3FF]'}`} /> SOC2 Type II</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className={`w-3.5 h-3.5 ${isAdmin ? 'text-slate-400' : 'text-[#7CF5C4]'}`} /> AES-256 Encrypted</span>
+      {/* Main Container - Glassmorphism */}
+      <motion.div 
+        layout
+        className={`relative z-10 w-full max-w-6xl flex flex-col lg:flex-row rounded-3xl overflow-hidden backdrop-blur-2xl shadow-2xl border ${
+          isAdmin 
+            ? 'bg-black/40 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]' 
+            : 'bg-white/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.37)]'
+        }`}
+      >
+        {/* Left Side: Branding & Info */}
+        <div className={`hidden lg:flex w-[45%] flex-col justify-between p-12 relative overflow-hidden ${isAdmin ? 'bg-black/60' : 'bg-gradient-to-br from-blue-900/40 to-indigo-900/40'}`}>
+          <div className="relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-4 mb-16"
+            >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-xl border ${isAdmin ? 'bg-white/5 border-white/10' : 'bg-white/20 border-white/30'} shadow-xl`}>
+                {isAdmin ? <Shield className="w-6 h-6 text-white" /> : <Sparkles className="w-6 h-6 text-white" />}
               </div>
-            </div>
+              <span className="text-2xl font-black tracking-tight text-white">AGILO AI</span>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-[0.2em] mb-6 backdrop-blur-md border ${isAdmin ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white/20 text-white border-white/30'}`}>
+                {isAdmin ? 'System Administration' : 'Enterprise Intelligence'}
+              </span>
+              <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] tracking-tight mb-6">
+                {isAdmin ? 'Secure Access to Core Systems' : 'Your Knowledge, Amplified'}
+              </h1>
+              <p className={`text-lg leading-relaxed ${isAdmin ? 'text-slate-400' : 'text-blue-100/80'}`}>
+                {isAdmin 
+                  ? 'Advanced management interface for RAG infrastructure, user access control, and vector database analytics.' 
+                  : 'Instantly retrieve, analyze, and synthesize insights from your entire corporate knowledge base.'}
+              </p>
+            </motion.div>
           </div>
 
-          {/* RIGHT PANEL */}
-          <div className={`w-full lg:w-[54%] h-full flex items-center justify-center p-5 sm:p-8 lg:p-10 ${isAdmin ? 'bg-[#111]' : 'bg-[#F8FAFF]'}`}>
-            <div className="w-full max-w-[420px]">
-              
-              {/* Type Switcher */}
-              <div className="flex justify-end mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="relative z-10 flex items-center gap-6 text-sm font-semibold text-white/60"
+          >
+            <span className="flex items-center gap-2"><Shield className="w-4 h-4 text-emerald-400" /> Enterprise Grade</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-sky-400" /> End-to-End Encrypted</span>
+          </motion.div>
+        </div>
+
+        {/* Right Side: Login Form */}
+        <div className={`w-full lg:w-[55%] p-8 sm:p-12 lg:p-16 flex flex-col justify-center relative ${isAdmin ? 'bg-[#0a0a0a]' : 'bg-white/5'}`}>
+          <div className="w-full max-w-md mx-auto">
+            
+            {/* Mode Switcher */}
+            <div className="flex justify-end mb-12">
+              <button
+                onClick={() => setMode(isAdmin ? 'employee_login' : 'admin_login')}
+                className={`group relative overflow-hidden px-6 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                  isAdmin 
+                    ? 'text-white border border-white/20 hover:bg-white/10' 
+                    : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
+                }`}
+              >
+                <span className="relative z-10">{isAdmin ? 'Switch to Employee' : 'Admin Login'}</span>
+              </button>
+            </div>
+
+            <div className="mb-10 text-center lg:text-left">
+              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
+                {mode === 'employee_login' ? 'Welcome Back' : mode === 'employee_register' ? 'Join Workspace' : 'Admin Portal'}
+              </h2>
+              <p className={`text-sm ${isAdmin ? 'text-slate-400' : 'text-blue-200/60'}`}>
+                {mode === 'employee_login' ? 'Sign in to access your AI assistant.' : mode === 'employee_register' ? 'Create your employee account.' : 'Authenticate to manage the system.'}
+              </p>
+            </div>
+
+            {!isAdmin && (
+              <div className="flex p-1 rounded-xl bg-white/5 border border-white/10 mb-8 backdrop-blur-md">
                 <button
-                  onClick={() => setMode(isAdmin ? 'employee_login' : 'admin_login')}
-                  className={`text-xs font-bold px-4 py-1.5 rounded-full border transition-all ${
-                    isAdmin 
-                      ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 shadow-sm'
+                  type="button"
+                  onClick={() => { setMode('employee_login'); setErrorMsg(null); }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
+                    mode === 'employee_login' ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  {isAdmin ? 'Switch to Employee' : 'Login as Admin'}
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('employee_register'); setErrorMsg(null); }}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
+                    mode === 'employee_register' ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  Sign Up
                 </button>
               </div>
+            )}
 
-              <div className="mb-8 text-center">
-                <h2 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isAdmin ? 'text-white' : 'text-[#0B1F3A]'}`}>
-                  {mode === 'employee_login' ? 'Welcome Back' : mode === 'employee_register' ? 'Create Account' : 'Admin Login'}
-                </h2>
-                <p className={`text-xs mt-2 ${isAdmin ? 'text-slate-400' : 'text-[#64748B]'}`}>
-                  {mode === 'employee_login' ? 'Sign in to your employee portal.' : mode === 'employee_register' ? 'Join your team workspace.' : 'Sign in to access the administration dashboard.'}
-                </p>
-              </div>
-
-              {!isAdmin && (
-                <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-white border border-[#DCE7F5] mb-6 shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => { setMode('employee_login'); setErrorMsg(null); }}
-                    className={`py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                      mode === 'employee_login' ? 'bg-[#EEF3FF] text-[#1D4ED8] border border-[#DCE7F5]' : 'text-[#64748B]'
-                    }`}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setMode('employee_register'); setErrorMsg(null); }}
-                    className={`py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
-                      mode === 'employee_register' ? 'bg-[#EEF3FF] text-[#1D4ED8] border border-[#DCE7F5]' : 'text-[#64748B]'
-                    }`}
-                  >
-                    Sign Up
-                  </button>
-                </div>
-              )}
-
+            <AnimatePresence mode="wait">
               {errorMsg && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-600">
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 flex items-center gap-3 backdrop-blur-sm"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                   {errorMsg}
-                </div>
+                </motion.div>
               )}
+            </AnimatePresence>
 
-              <AnimatePresence mode="wait">
-                {(mode === 'employee_login' || mode === 'admin_login') ? (
-                  <motion.form
-                    key="login-form"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    onSubmit={handleLogin}
-                    className="space-y-4"
+            <AnimatePresence mode="wait">
+              {(mode === 'employee_login' || mode === 'admin_login') ? (
+                <motion.form
+                  key="login"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  onSubmit={handleLogin}
+                  className="space-y-5"
+                >
+                  <div className="space-y-1.5">
+                    <label className={`text-xs font-bold uppercase tracking-wider ${isAdmin ? 'text-slate-400' : 'text-blue-200/80'}`}>Username or Email</label>
+                    <div className="relative group">
+                      <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${isAdmin ? 'text-slate-500 group-focus-within:text-white' : 'text-blue-300/50 group-focus-within:text-white'}`} />
+                      <input
+                        type="text"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={`w-full pl-12 pr-4 py-3.5 rounded-xl text-base font-medium transition-all duration-300 focus:outline-none backdrop-blur-md ${
+                          isAdmin 
+                            ? 'bg-white/5 border border-white/10 text-white focus:border-white/30 focus:bg-white/10 placeholder-slate-600' 
+                            : 'bg-white/10 border border-white/20 text-white focus:border-blue-400 focus:bg-white/20 focus:ring-4 focus:ring-blue-400/20 placeholder-blue-200/30'
+                        }`}
+                        placeholder={isAdmin ? "admin" : "you@company.com"}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className={`text-xs font-bold uppercase tracking-wider ${isAdmin ? 'text-slate-400' : 'text-blue-200/80'}`}>Password</label>
+                    <div className="relative group">
+                      <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${isAdmin ? 'text-slate-500 group-focus-within:text-white' : 'text-blue-300/50 group-focus-within:text-white'}`} />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={`w-full pl-12 pr-4 py-3.5 rounded-xl text-base font-medium transition-all duration-300 focus:outline-none backdrop-blur-md ${
+                          isAdmin 
+                            ? 'bg-white/5 border border-white/10 text-white focus:border-white/30 focus:bg-white/10 placeholder-slate-600' 
+                            : 'bg-white/10 border border-white/20 text-white focus:border-blue-400 focus:bg-white/20 focus:ring-4 focus:ring-blue-400/20 placeholder-blue-200/30'
+                        }`}
+                        placeholder="••••••••••••"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {!isAdmin && (
+                    <div className="flex items-center justify-between text-sm pt-2">
+                      <label className="flex items-center gap-2 text-white/80 cursor-pointer hover:text-white transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="rounded border-white/20 bg-white/10 text-blue-500 focus:ring-blue-500/30 w-4 h-4 transition-all"
+                        />
+                        Remember me
+                      </label>
+                      <a href="#forgot" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">
+                        Forgot password?
+                      </a>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className={`w-full py-4 mt-4 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer group ${
+                      isAdmin 
+                        ? 'bg-white text-black hover:bg-slate-200 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] disabled:bg-white/50' 
+                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100'
+                    }`}
                   >
-                    <div>
-                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isAdmin ? 'text-slate-400' : 'text-[#0B1F3A]'}`}>
-                        Username or Email
-                      </label>
-                      <div className="relative">
-                        <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isAdmin ? 'text-slate-500' : 'text-slate-400'}`} />
-                        <input
-                          type="text"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className={`w-full pl-10 pr-3 py-3 rounded-lg text-sm font-medium focus:outline-none transition-all ${
-                            isAdmin 
-                              ? 'bg-[#1A1A1A] border-slate-800 text-white border focus:border-slate-500 placeholder-slate-600' 
-                              : 'bg-white border-[#CBD5E1] text-[#0F172A] border focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder-slate-400 shadow-sm'
-                          }`}
-                          placeholder={isAdmin ? "admin" : "you@company.com"}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isAdmin ? 'text-slate-400' : 'text-[#0B1F3A]'}`}>
-                        Password
-                      </label>
-                      <div className="relative">
-                        <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isAdmin ? 'text-slate-500' : 'text-slate-400'}`} />
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className={`w-full pl-10 pr-3 py-3 rounded-lg text-sm font-medium focus:outline-none transition-all ${
-                            isAdmin 
-                              ? 'bg-[#1A1A1A] border-slate-800 text-white border focus:border-slate-500 placeholder-slate-600' 
-                              : 'bg-white border-[#CBD5E1] text-[#0F172A] border focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder-slate-400 shadow-sm'
-                          }`}
-                          placeholder="••••••••••••"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {!isAdmin && (
-                      <div className="flex items-center justify-between text-[11px] font-medium pt-1">
-                        <label className="flex items-center gap-1.5 text-[#0F172A] cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                            className="rounded border-[#CBD5E1] text-[#2563EB] focus:ring-[#2563EB] w-3.5 h-3.5"
-                          />
-                          Remember me
-                        </label>
-                        <a href="#forgot" className="text-[#2563EB] font-bold hover:underline">
-                          Forgot password?
-                        </a>
-                      </div>
+                    {isLoading ? (
+                      <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isAdmin ? 'border-black/30 border-t-black' : 'border-white/30 border-t-white'}`} />
+                    ) : (
+                      <>
+                        <span>{isAdmin ? 'Access System' : 'Sign In'}</span>
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                      </>
                     )}
-
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      style={!isAdmin ? { background: 'linear-gradient(to right, #1D4ED8, #2563EB)' } : undefined}
-                      className={`w-full py-2.5 px-6 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 ${
-                        isAdmin 
-                          ? 'bg-white text-black hover:bg-slate-200' 
-                          : 'text-white shadow-lg shadow-[#2563EB]/25 hover:shadow-xl hover:shadow-[#2563EB]/35'
-                      }`}
-                    >
-                      {isLoading ? (
-                        <div className={`w-4 h-4 border-2 rounded-full animate-spin ${isAdmin ? 'border-black/30 border-t-black' : 'border-white/30 border-t-white'}`} />
-                      ) : (
-                        <>
-                          <span>{isAdmin ? 'Access Admin Console' : 'Sign In to Workspace'}</span>
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                    </button>
-                  </motion.form>
-                ) : (
-                  <motion.form
-                    key="register-form"
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -8 }}
-                    transition={{ duration: 0.15 }}
-                    onSubmit={handleRegister}
-                    className="space-y-2.5"
-                  >
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#0B1F3A] uppercase tracking-wider mb-1">
-                        Username
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
+                  </button>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="register"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  onSubmit={handleRegister}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Username</label>
+                      <div className="relative group">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
                         <input
                           type="text"
                           value={regUsername}
                           onChange={(e) => setRegUsername(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-white border border-[#CBD5E1] rounded-lg text-sm text-[#0F172A] font-medium focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
-                          placeholder="jane.doe"
+                          className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                          placeholder="johndoe"
                           required
                         />
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-[#0B1F3A] uppercase tracking-wider mb-1">
-                        Work Email
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Email</label>
+                      <div className="relative group">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
                         <input
                           type="email"
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-white border border-[#CBD5E1] rounded-lg text-sm text-[#0F172A] font-medium focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
+                          className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
                           placeholder="you@company.com"
                           required
                         />
                       </div>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#0B1F3A] uppercase tracking-wider mb-1">
-                          Password
-                        </label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
-                          <input
-                            type="password"
-                            value={regPassword}
-                            onChange={(e) => setRegPassword(e.target.value)}
-                            className="w-full pl-9 pr-2 py-2 bg-white border border-[#CBD5E1] rounded-lg text-sm text-[#0F172A] font-medium focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
-                            placeholder="Min 6 chars"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-[#0B1F3A] uppercase tracking-wider mb-1">
-                          Confirm
-                        </label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8]" />
-                          <input
-                            type="password"
-                            value={regConfirm}
-                            onChange={(e) => setRegConfirm(e.target.value)}
-                            className="w-full pl-9 pr-2 py-2 bg-white border border-[#CBD5E1] rounded-lg text-sm text-[#0F172A] font-medium focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
-                            placeholder="Re-enter"
-                            required
-                          />
-                        </div>
-                      </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Password</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
+                      <input
+                        type="password"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                        placeholder="••••••••••••"
+                        required
+                        minLength={6}
+                      />
                     </div>
-
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      style={{ background: 'linear-gradient(to right, #1D4ED8, #2563EB)' }}
-                      className="w-full py-2.5 px-6 rounded-lg text-white font-bold text-sm shadow-lg shadow-[#2563EB]/25 hover:shadow-xl hover:shadow-[#2563EB]/35 transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 !mt-4"
-                    >
-                      {isLoading ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <span className="text-white">Create Account</span>
-                          <ArrowRight className="w-4 h-4 text-white group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                    </button>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-
-              <p className="text-center text-[11px] text-[#64748B] font-medium mt-4">
-                {mode === 'login' ? (
-                  <>
-                    Don't have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => { setMode('register'); setErrorMsg(null); }}
-                      className="text-[#2563EB] font-bold hover:underline cursor-pointer"
-                    >
-                      Sign up
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => { setMode('login'); setErrorMsg(null); }}
-                      className="text-[#2563EB] font-bold hover:underline cursor-pointer"
-                    >
-                      Sign in
-                    </button>
-                  </>
-                )}
-              </p>
-
-              <div className="mt-5 pt-4 border-t border-[#DCE7F5] flex items-center justify-between">
-                <div className="flex items-center -space-x-2">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 border-2 border-white flex items-center justify-center text-[9px] font-extrabold text-white shadow-sm">
-                    CTO
                   </div>
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 border-2 border-white flex items-center justify-center text-[9px] font-extrabold text-white shadow-sm">
-                    PM
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Confirm Password</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
+                      <input
+                        type="password"
+                        value={regConfirm}
+                        onChange={(e) => setRegConfirm(e.target.value)}
+                        className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                        placeholder="••••••••••••"
+                        required
+                        minLength={6}
+                      />
+                    </div>
                   </div>
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 border-2 border-white flex items-center justify-center text-[9px] font-extrabold text-white shadow-sm">
-                    ENG
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-bold text-[#0B1F3A]">Built for enterprise teams</div>
-                  <div className="text-[9px] text-[#64748B] font-medium">Secured & Compliant</div>
-                </div>
-              </div>
-            </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3.5 mt-2 rounded-lg font-bold text-sm bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:hover:translate-y-0"
+                  >
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>Create Account</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </div>
+      </motion.div>
     </main>
   );
 };

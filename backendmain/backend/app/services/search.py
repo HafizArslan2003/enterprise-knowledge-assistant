@@ -28,6 +28,7 @@ def search_documents(
     top_k: int = DEFAULT_FINAL_CHUNKS,
     user: User | None = None,
     history: list[dict[str, str]] | None = None,
+    doc_filter: str | None = None,
 ):
     """
     Search document chunks using local embeddings + pgvector.
