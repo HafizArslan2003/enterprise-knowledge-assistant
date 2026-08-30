@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # AI / LLM Configuration
     OPENAI_API_KEY: str = ""
     QUERY_EMBEDDING_CACHE_SIZE: int = 256
-    RAG_TOP_K: int = 5
+    RAG_TOP_K: int = 15
     RAG_HISTORY_TURNS: int = 6
     RAG_MAX_OUTPUT_TOKENS: int = 1024
 

@@ -96,6 +96,7 @@ export const DashboardPage: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
   const [isSavingGeminiKey, setIsSavingGeminiKey] = useState(false);
   const [geminiKeyMessage, setGeminiKeyMessage] = useState('');
   const [isRestrictedUpload, setIsRestrictedUpload] = useState(false);
+  const [docFilter, setDocFilter] = useState<'all' | 'company' | 'private'>('all');
 
   // activeSession: if in pendingNewChat mode, use a virtual empty session; otherwise look up the real one
   const activeSession: ConversationSession = pendingNewChat
@@ -155,7 +156,8 @@ const handleSendMessage = async (queryText: string) => {
         },
         token,
         // Pass null when pending so the backend auto-creates a new session
-        isStartingNewSession ? null : activeSessionIdNumber
+        isStartingNewSession ? null : activeSessionIdNumber,
+        docFilter
       );
 
       const assistantMsg: Message = {
@@ -1044,6 +1046,9 @@ const handleSendMessage = async (queryText: string) => {
               currentToolStep={currentToolStep}
               onUploadClick={handleUploadClick}
               isUploading={uploading}
+              docFilter={docFilter}
+              setDocFilter={setDocFilter}
+              userRole={currentUser?.role}
             />
           )}
         </main>

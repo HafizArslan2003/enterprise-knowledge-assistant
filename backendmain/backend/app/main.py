@@ -12,6 +12,12 @@ from backend.app.api import auth, chat, documents, sessions, analytics
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
+    # Eagerly load the embedding model in the background so the first query is fast
+    try:
+        from backend.app.services.embedding import _get_model
+        _get_model()
+    except Exception as e:
+        print(f"Warning: Failed to pre-load embedding model during startup: {e}")
     yield
 
 

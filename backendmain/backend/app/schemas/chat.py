@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class ChatRequest(BaseModel):
     question: str
     session_id: int | None = None
+    doc_filter: str | None = None  # "company" or "private" or "all"
 
 
 class Source(BaseModel):

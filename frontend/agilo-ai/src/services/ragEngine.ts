@@ -205,7 +205,8 @@ export async function processUserQuery(
   userQuery: string,
   onStepUpdate?: (step: string) => void,
   token?: string,
-  sessionId?: number | null
+  sessionId?: number | null,
+  docFilter?: string
 ): Promise<{ content: string; usedDocumentSearch: boolean; toolSteps: string[]; sources?: SourceCitation[]; sessionId: number | null }> {
   const toolSteps: string[] = ['Analyzing request...'];
   if (onStepUpdate) onStepUpdate('Analyzing request...');
@@ -214,7 +215,7 @@ export async function processUserQuery(
   if (onStepUpdate) onStepUpdate('🔎 Searching knowledge base...');
 
   try {
-    const response = await askQuestion(userQuery, token, sessionId);
+    const response = await askQuestion(userQuery, token, sessionId, docFilter);
 
     toolSteps.push(`✓ ${response.sources.length} Sources found`);
     if (onStepUpdate) onStepUpdate(`✓ ${response.sources.length} Sources found`);

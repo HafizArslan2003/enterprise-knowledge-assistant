@@ -135,38 +135,40 @@ def search_documents(
                 .all()
             )
         else:
-            # For employees: run TWO separate searches
-            # 1) Their own private docs (always include ALL of them for relevance)
+            # For employees: filter based on doc_filter
             from sqlalchemy import or_
-            private_query = candidates_query.filter(
-                Document.type == "private",
-                Document.uploaded_by == user.id
-            )
-            private_candidates = (
-                private_query
-                .order_by(distance_expression)
-                .limit(candidate_pool_size)
-                .all()
-            )
-
-            # 2) Company docs — "restricted" is intentionally never queried
-            # here, so employees cannot retrieve those chunks at all.
-            company_query = (
-                db.query(
-                    DocumentChunk,
-                    distance_expression.label("distance"),
+            
+            private_candidates = []
+            if doc_filter in ("all", "private", None):
+                private_query = candidates_query.filter(
+                    Document.type == "private",
+                    Document.uploaded_by == user.id
                 )
-                .join(DocumentChunk.document)
-                .filter(Document.type == "company")
-            )
-            company_candidates = (
-                company_query
-                .order_by(distance_expression)
-                .limit(candidate_pool_size)
-                .all()
-            )
+                private_candidates = (
+                    private_query
+                    .order_by(distance_expression)
+                    .limit(candidate_pool_size)
+                    .all()
+                )
 
-            # Merge: private docs take priority slots, then fill with company docs
+            company_candidates = []
+            if doc_filter in ("all", "company", None):
+                company_query = (
+                    db.query(
+                        DocumentChunk,
+                        distance_expression.label("distance"),
+                    )
+                    .join(DocumentChunk.document)
+                    .filter(Document.type == "company")
+                )
+                company_candidates = (
+                    company_query
+                    .order_by(distance_expression)
+                    .limit(candidate_pool_size)
+                    .all()
+                )
+
+            # Merge
             private_ids = {chunk.id for chunk, _ in private_candidates}
             combined = list(private_candidates)
             for item in company_candidates:
@@ -260,7 +262,7 @@ def search_documents(
     # Apply minimum similarity threshold filtering
     # The hybrid boost ensures that low-vector-scoring chunks with exact 
     # keyword matches can survive this filter.
-    MIN_SIMILARITY = 20.0  # tuned for all-MiniLM-L6-v2 local embeddings + hybrid boost
+    MIN_SIMILARITY = 15.0  # tuned for all-MiniLM-L6-v2 local embeddings + hybrid boost
 
     filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
 

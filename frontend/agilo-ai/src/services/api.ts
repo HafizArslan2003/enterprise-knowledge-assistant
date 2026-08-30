@@ -174,7 +174,7 @@ export async function saveGeminiApiKey(apiKey: string, token?: string) {
   );
 }
 
-export async function askQuestion(question: string, token?: string, sessionId?: number | null) {
+export async function askQuestion(question: string, token?: string, sessionId?: number | null, docFilter?: string) {
   return request<BackendChatResponse>(
     '/api/v1/chat/ask',
     {
@@ -185,6 +185,7 @@ export async function askQuestion(question: string, token?: string, sessionId?: 
       body: JSON.stringify({
         question,
         session_id: sessionId ?? null,
+        doc_filter: docFilter || null,
       }),
     },
     token

@@ -24,6 +24,9 @@ interface ChatInterfaceProps {
   isGenerating: boolean;
   currentToolStep?: string;
   isUploading?: boolean;
+  docFilter?: 'all' | 'company' | 'private';
+  setDocFilter?: (filter: 'all' | 'company' | 'private') => void;
+  userRole?: string;
 }
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -34,6 +37,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isGenerating,
   currentToolStep,
   isUploading,
+  docFilter = 'all',
+  setDocFilter,
+  userRole,
 }) => {
   const [inputText, setInputText] = useState('');
   const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
@@ -155,28 +161,30 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                 {msg.sender === 'assistant' && (
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium text-slate-400">Was this helpful?</span>
                     <button
-                      onClick={() => handleFeedback(msg.id, 1)}
-                      className={`p-1 rounded-lg border transition-colors cursor-pointer ${
-                        feedbackMap[msg.id] === 1
-                          ? 'bg-agilo-primary text-white border-agilo-primary'
-                          : 'border-agilo-border hover:bg-slate-100 text-agilo-secondary'
-                      }`}
-                      title="Helpful response"
+                      onClick={() => navigator.clipboard.writeText(msg.content)}
+                      className="p-1 rounded text-agilo-secondary hover:text-agilo-primary hover:bg-slate-100 transition-colors"
+                      title="Copy Answer"
                     >
-                      {feedbackMap[msg.id] === 1 ? <Check className="w-3 h-3" /> : <ThumbsUp className="w-3 h-3" />}
+                      Copy
+                    </button>
+                  </div>
+                )}
+                {msg.sender === 'user' && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(msg.content)}
+                      className="p-1 rounded text-agilo-secondary hover:text-agilo-primary hover:bg-slate-100 transition-colors"
+                      title="Copy Question"
+                    >
+                      Copy
                     </button>
                     <button
-                      onClick={() => handleFeedback(msg.id, -1)}
-                      className={`p-1 rounded-lg border transition-colors cursor-pointer ${
-                        feedbackMap[msg.id] === -1
-                          ? 'bg-red-500 text-white border-red-500'
-                          : 'border-agilo-border hover:bg-slate-100 text-agilo-secondary'
-                      }`}
-                      title="Needs improvement"
+                      onClick={() => setInputText(msg.content)}
+                      className="p-1 rounded text-agilo-secondary hover:text-agilo-primary hover:bg-slate-100 transition-colors"
+                      title="Edit Question"
                     >
-                      <ThumbsDown className="w-3 h-3" />
+                      Edit
                     </button>
                   </div>
                 )}
@@ -240,6 +248,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 >
                   <Paperclip className="w-4 h-4" />
                 </button>
+                {userRole === 'employee' && setDocFilter && (
+                  <select
+                    value={docFilter}
+                    onChange={(e) => setDocFilter(e.target.value as any)}
+                    className="ml-2 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 text-slate-600 focus:outline-none focus:border-agilo-primary"
+                  >
+                    <option value="all">Search All Docs</option>
+                    <option value="company">Company Docs Only</option>
+                    <option value="private">My Private Docs Only</option>
+                  </select>
+                )}
               </div>
 
               <button

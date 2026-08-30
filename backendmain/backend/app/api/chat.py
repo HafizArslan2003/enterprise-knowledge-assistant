@@ -182,7 +182,7 @@ def ask_question(
             ]
             
             answer, sources, source_doc_ids_str = answer_document_question(
-                db, request.question, current_user, api_key, history
+                db, request.question, current_user, api_key, history, request.doc_filter
             )
 
         # 4. Save the assistant's answer, including any documents it used.
@@ -204,9 +204,9 @@ def ask_question(
         raise HTTPException(status_code=500, detail=f"Error generating answer: {str(e)}")
 
 
-def answer_document_question(db: Session, question: str, user: User, api_key: str, history: list[dict[str, str]] | None = None):
+def answer_document_question(db: Session, question: str, user: User, api_key: str, history: list[dict[str, str]] | None = None, doc_filter: str | None = None):
     """Run the slow RAG path only for questions that require documents."""
-    results = search_documents(db, question, api_key, top_k=settings.RAG_TOP_K, user=user, history=history)
+    results = search_documents(db, question, api_key, top_k=settings.RAG_TOP_K, user=user, history=history, doc_filter=doc_filter)
     if not results:
         return REFUSAL_MESSAGE, [], None
 
