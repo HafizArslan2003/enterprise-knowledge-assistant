@@ -6,8 +6,9 @@ from backend.app.core.config import settings
 from backend.app.database.base import Base
 
 engine = create_engine(
-    settings.DATABASE_URL
-    # Removed connect_args={"check_same_thread": False}
+    settings.DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=1800,  # Recycle connections after 30 minutes to be safe
 )
 
 SessionLocal = sessionmaker(
