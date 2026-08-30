@@ -1,18 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Message, SourceCitation } from '../../services/ragEngine';
-import { submitMessageFeedback } from '../../services/api';
 import { FormattedMarkdown } from './FormattedMarkdown';
 import {
-  Send,
-  Paperclip,
   Sparkles,
   FileText,
   Brain,
   Search,
   ArrowUpRight,
-  ThumbsUp,
-  ThumbsDown,
-  Check
+  Send,
+  Paperclip,
+  Copy,
+  Edit2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -42,7 +40,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   userRole,
 }) => {
   const [inputText, setInputText] = useState('');
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, number>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -58,20 +55,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!inputText.trim() || isGenerating) return;
     onSendMessage(inputText.trim());
     setInputText('');
-  };
-
-  const handleFeedback = async (msgId: string, feedback: 1 | -1) => {
-    setFeedbackMap(prev => ({ ...prev, [msgId]: feedback }));
-    const match = msgId.match(/\d+/);
-    if (match) {
-      const numericId = parseInt(match[0], 10);
-      const token = localStorage.getItem('agilo-access-token') || undefined;
-      try {
-        await submitMessageFeedback(numericId, feedback, token);
-      } catch (err) {
-        console.error('Feedback submission failed:', err);
-      }
-    }
   };
 
   return (
@@ -155,7 +138,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
               </div>
 
-              {/* Timestamp & Feedback Buttons */}
+              {/* Timestamp & Actions */}
               <div className="flex items-center justify-between px-1 text-[10px] text-agilo-secondary w-full">
                 <span>{msg.timestamp}</span>
 
@@ -166,7 +149,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       className="p-1 rounded text-agilo-secondary hover:text-agilo-primary hover:bg-slate-100 transition-colors"
                       title="Copy Answer"
                     >
-                      Copy
+                      <Copy className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -177,14 +160,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       className="p-1 rounded text-agilo-secondary hover:text-agilo-primary hover:bg-slate-100 transition-colors"
                       title="Copy Question"
                     >
-                      Copy
+                      <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => setInputText(msg.content)}
                       className="p-1 rounded text-agilo-secondary hover:text-agilo-primary hover:bg-slate-100 transition-colors"
                       title="Edit Question"
                     >
-                      Edit
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
