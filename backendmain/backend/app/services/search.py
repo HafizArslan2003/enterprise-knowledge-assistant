@@ -125,6 +125,8 @@ def search_documents(
 
     if user is not None:
         if user.role == "admin":
+            # Admin sees company + restricted docs (private docs belong to employees,
+            # admins manage company-wide knowledge — not individual employee uploads)
             from sqlalchemy import or_
             candidates_query = candidates_query.filter(
                 or_(Document.type == "company", Document.type == "restricted")
@@ -136,9 +138,10 @@ def search_documents(
                 .all()
             )
         else:
-            # For employees: filter based on doc_filter
+            # Employee: search their own private docs + company docs
+            # based on the doc_filter selection from the UI dropdown
             from sqlalchemy import or_
-            
+
             private_candidates = []
             if doc_filter in ("all", "private", None):
                 private_query = candidates_query.filter(
@@ -169,16 +172,17 @@ def search_documents(
                     .all()
                 )
 
-            # Merge
+            # Merge private + company, deduplicate by chunk id, sort by distance
             private_ids = {chunk.id for chunk, _ in private_candidates}
             combined = list(private_candidates)
             for item in company_candidates:
                 if item[0].id not in private_ids:
                     combined.append(item)
 
-            # Sort combined by distance
             candidates = sorted(combined, key=lambda x: float(x[1]))[:candidate_pool_size]
     else:
+        # No user context — search all non-private docs (safe default)
+        candidates_query = candidates_query.filter(Document.type != "private")
         candidates = (
             candidates_query
             .order_by(distance_expression)
@@ -206,8 +210,18 @@ def search_documents(
 
     scored_candidates = []
     
-    # Extract keywords > 3 chars for hybrid text matching, ignoring common stop words
-    stop_words = {"tell", "about", "what", "this", "that", "give", "show", "find", "have", "with", "from"}
+    # Extract keywords > 3 chars for hybrid text matching, ignoring common stop words.
+    # Expanded list prevents question words ("who", "whos", "tell", "list") from
+    # getting keyword boosts and pulling in unrelated documents.
+    stop_words = {
+        "tell", "about", "what", "this", "that", "give", "show", "find",
+        "have", "with", "from", "who", "whos", "whose", "which", "when",
+        "where", "how", "does", "did", "the", "and", "for", "are", "was",
+        "were", "can", "could", "would", "should", "may", "might", "will",
+        "shall", "all", "any", "our", "your", "their", "its", "let", "list",
+        "please", "just", "also", "more", "some", "into", "them", "they",
+        "been", "has", "had", "not", "but", "than", "then", "out",
+    }
     raw_terms = set(re.findall(r'\b\w{3,}\b', query.lower()))
     query_terms = {term for term in raw_terms if term not in stop_words}
 
@@ -230,9 +244,14 @@ def search_documents(
         filename_match_count = 0
         for term in query_terms:
             base_term = term[:-1] if term.endswith('s') else term
-            if base_term in chunk_text_lower:
+            
+            # Use regex boundaries \b so "plan" doesn't falsely match "planet" 
+            # or "car" matching "carpet", which ruins search accuracy.
+            pattern = r'\b' + re.escape(base_term) + r'\b'
+            
+            if re.search(pattern, chunk_text_lower):
                 text_match_count += 1
-            if base_term in doc_filename_lower:
+            if re.search(pattern, doc_filename_lower):
                 filename_match_count += 1
         
         # Max +15% for text, Max +5% for filename
@@ -272,21 +291,34 @@ def search_documents(
         print(f"⚠️ No candidates met the {MIN_SIMILARITY}% threshold after boosting. Returning empty result.")
         return []
 
-    # For employees: guarantee that their private doc chunks are included
-    # even if company docs rank higher in similarity. Reserve at least
-    # half of top_k slots for private docs if the user has any.
+    # --------------------------------------------------------
+    # 4b. SMART SLOT SELECTION (Employee Role)
+    # --------------------------------------------------------
+    # Problem with naive "always reserve half slots for private docs":
+    #   Query = "who is CEO?" → employee's unrelated performance.pdf
+    #   gets a forced slot just because it's "private", blocking the
+    #   company doc that actually has CEO info.
+    #
+    # Fix: only reserve private slots if the private doc is ALSO
+    # reasonably relevant to the query. Pure similarity ranking is
+    # used when private docs are not relevant enough.
+
     if user is not None and user.role == "employee":
         private_scored = [c for c in filtered_candidates if c["chunk"].document.type == "private"]
         company_scored = [c for c in filtered_candidates if c["chunk"].document.type != "private"]
 
-        if private_scored:
-            # Give private docs at least half the slots (minimum 1)
+        # Only give reserved slots to private docs that are genuinely relevant
+        RELEVANT_PRIVATE_THRESHOLD = 35.0
+        relevant_private = [c for c in private_scored if c["similarity"] >= RELEVANT_PRIVATE_THRESHOLD]
+
+        if relevant_private:
+            # Private doc is actually relevant — share slots fairly
             private_slots = max(1, top_k // 2)
-            company_slots = top_k - min(len(private_scored), private_slots)
-            selected = private_scored[:private_slots] + company_scored[:company_slots]
-            # Re-sort the selected by similarity
+            company_slots = top_k - min(len(relevant_private), private_slots)
+            selected = relevant_private[:private_slots] + company_scored[:company_slots]
             selected.sort(key=lambda item: item["similarity"], reverse=True)
         else:
+            # Private doc is irrelevant to this query — pure similarity ranking wins
             selected = filtered_candidates[:top_k]
     else:
         selected = filtered_candidates[:top_k]
