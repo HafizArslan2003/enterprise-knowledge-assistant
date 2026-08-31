@@ -363,9 +363,9 @@ The RAG pipeline also implements retry handling with **exponential backoff** to 
 
 More detailed documentation is available in the individual project directories:
 
-* **`backendmain/README.md`** — Backend API reference, database model, RAG pipeline, environment variables, and known gaps.
-* **`frontend/agilo-ai/README.md`** — Frontend component structure, authentication flow, chat flow, views, and known gaps.
+- **[backendmain/README.md](backendmain/README.md)** — Backend API reference, database model, RAG pipeline, environment variables, and known gaps.
 
+- **[frontend/agilo-ai/README.md](frontend/agilo-ai/README.md)** — Frontend component structure, authentication flow, chat flow, views, and known gaps.
 ## Project Status
 
 Agilo AI is an actively evolving **enterprise RAG prototype**.
