@@ -254,9 +254,11 @@ def search_documents(
             if re.search(pattern, doc_filename_lower):
                 filename_match_count += 1
         
-        # Max +15% for text, Max +5% for filename
-        text_boost = (text_match_count / max(len(query_terms), 1)) * 15.0
-        filename_boost = (filename_match_count / max(len(query_terms), 1)) * 5.0
+        # Boost by a fixed amount per matching keyword (e.g. +5% per word, up to max +25%).
+        # Previously, this divided by len(query_terms), which severely penalized long 
+        # queries (like the MedLink escalation question) by making the boost negligible.
+        text_boost = min(text_match_count * 5.0, 25.0)
+        filename_boost = min(filename_match_count * 5.0, 10.0)
         
         final_similarity = similarity_percent + text_boost + filename_boost
 
@@ -279,11 +281,12 @@ def search_documents(
         reverse=True,
     )
 
-    # Apply minimum similarity threshold filtering
-    # 25% is a balanced threshold for all-MiniLM-L6-v2 local embeddings.
-    # Too high (40%+) silently rejects all genuine matches.
-    # Too low (< 15%) brings in irrelevant noise.
-    MIN_SIMILARITY = 25.0
+    # Apply minimum similarity threshold filtering.
+    # Lowered drastically to 5.0% because long conversational queries (or typos like 
+    # 'queshi') have naturally low mathematical cosine similarity. The LLM is smart 
+    # enough to say "I don't know" if the top 4 chunks are irrelevant, so we shouldn't 
+    # prematurely filter them out here and starve the LLM.
+    MIN_SIMILARITY = 5.0
 
     filtered_candidates = [c for c in scored_candidates if c["similarity"] >= MIN_SIMILARITY]
 
@@ -291,37 +294,10 @@ def search_documents(
         print(f"⚠️ No candidates met the {MIN_SIMILARITY}% threshold after boosting. Returning empty result.")
         return []
 
-    # --------------------------------------------------------
-    # 4b. SMART SLOT SELECTION (Employee Role)
-    # --------------------------------------------------------
-    # Problem with naive "always reserve half slots for private docs":
-    #   Query = "who is CEO?" → employee's unrelated performance.pdf
-    #   gets a forced slot just because it's "private", blocking the
-    #   company doc that actually has CEO info.
-    #
-    # Fix: only reserve private slots if the private doc is ALSO
-    # reasonably relevant to the query. Pure similarity ranking is
-    # used when private docs are not relevant enough.
-
-    if user is not None and user.role == "employee":
-        private_scored = [c for c in filtered_candidates if c["chunk"].document.type == "private"]
-        company_scored = [c for c in filtered_candidates if c["chunk"].document.type != "private"]
-
-        # Only give reserved slots to private docs that are genuinely relevant
-        RELEVANT_PRIVATE_THRESHOLD = 35.0
-        relevant_private = [c for c in private_scored if c["similarity"] >= RELEVANT_PRIVATE_THRESHOLD]
-
-        if relevant_private:
-            # Private doc is actually relevant — share slots fairly
-            private_slots = max(1, top_k // 2)
-            company_slots = top_k - min(len(relevant_private), private_slots)
-            selected = relevant_private[:private_slots] + company_scored[:company_slots]
-            selected.sort(key=lambda item: item["similarity"], reverse=True)
-        else:
-            # Private doc is irrelevant to this query — pure similarity ranking wins
-            selected = filtered_candidates[:top_k]
-    else:
-        selected = filtered_candidates[:top_k]
+    # Simply take the top_k most similar chunks. 
+    # Access rights (which documents the user is allowed to see) are already 
+    # securely filtered in the database query earlier in this function.
+    selected = filtered_candidates[:top_k]
 
     # --------------------------------------------------------
     # 5. DEBUG RESULTS
