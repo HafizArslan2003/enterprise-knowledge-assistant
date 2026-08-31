@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     # AI / LLM Configuration
     OPENAI_API_KEY: str = ""
     QUERY_EMBEDDING_CACHE_SIZE: int = 256
-    RAG_TOP_K: int = 4
-    RAG_HISTORY_TURNS: int = 4
-    RAG_MAX_OUTPUT_TOKENS: int = 1024
+    RAG_TOP_K: int = 4               # Retrieve only top 4 chunks — avoids Groq TPM limit
+    RAG_HISTORY_TURNS: int = 4       # Keep last 4 turns of history only
+    RAG_MAX_OUTPUT_TOKENS: int = 512 # 512 keeps responses under Groq free TPM
 
     # Database Configuration
     # Note: Ensure 'password' is replaced with your actual pgAdmin master password

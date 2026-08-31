@@ -200,6 +200,12 @@ def ask_question(
     except HTTPException:
         raise
     except Exception as e:
+        import openai
+        if isinstance(e, openai.RateLimitError) or "429" in str(e):
+            raise HTTPException(
+                status_code=429,
+                detail="Groq rate limit reached. Please wait a few seconds and try again."
+            )
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error generating answer: {str(e)}")
 
@@ -225,6 +231,10 @@ def answer_document_question(db: Session, question: str, user: User, api_key: st
         # private docs and (for admins) all docs are left untouched.
         if user.role == "employee" and doc.type == "company":
             chunk_text_for_llm = redact_sensitive_fields(chunk_text_for_llm)
+
+        # Hard safety cap per chunk — prevents token explosion with large docs.
+        # 4 chunks × 800 chars ≈ 800 tokens total context (well under Groq free 8k TPM).
+        chunk_text_for_llm = chunk_text_for_llm[:800]
 
         context_parts.append(
             f"[{tag} — Source: {doc.filename}, Page {chunk.page_number}]\n{chunk_text_for_llm}"
