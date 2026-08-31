@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Sparkles, Mail, Lock, User, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Shield, Sparkles, Mail, Lock, User, ArrowRight, CheckCircle2, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authenticateUser, registerUser } from '../../services/api';
 
@@ -11,15 +11,12 @@ type Mode = 'employee_login' | 'employee_register' | 'admin_login';
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [mode, setMode] = useState<Mode>('employee_login');
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirm, setRegConfirm] = useState('');
-
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -43,16 +40,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-
-    if (regPassword !== regConfirm) {
-      setErrorMsg('Passwords do not match');
-      return;
-    }
-    if (regPassword.length < 6) {
-      setErrorMsg('Password must be at least 6 characters');
-      return;
-    }
-
+    if (regPassword !== regConfirm) { setErrorMsg('Passwords do not match'); return; }
+    if (regPassword.length < 6) { setErrorMsg('Password must be at least 6 characters'); return; }
     setIsLoading(true);
     try {
       await registerUser(regUsername, regEmail, regPassword);
@@ -69,181 +58,226 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const isAdmin = mode === 'admin_login';
 
+  // ─── EMPLOYEE THEME (matches dashboard: #0B1F3A navy + #2563EB blue) ───────
+  const employeeTheme = {
+    bg: 'bg-[#060f1e]',
+    leftPanel: 'bg-gradient-to-br from-[#0B1F3A] via-[#0d2548] to-[#091830]',
+    rightPanel: 'bg-[#071427]',
+    card: 'bg-[#0B1F3A]/80 border-[#1E3A5F]/60 shadow-[0_32px_80px_rgba(0,0,0,0.6)]',
+    label: 'text-[#38BDF8]/80',
+    input: 'bg-[#0f2744] border border-[#1E3A5F] text-white focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/20 placeholder-[#2563EB]/20',
+    icon: 'text-[#38BDF8]/40 group-focus-within:text-[#38BDF8]',
+    badge: 'bg-[#2563EB]/10 text-[#38BDF8] border-[#2563EB]/20',
+    tagline: 'text-[#38BDF8]',
+    body: 'text-[#7DB9E8]/70',
+    btn: 'bg-gradient-to-r from-[#2563EB] to-[#38BDF8] text-white shadow-lg shadow-[#2563EB]/30 hover:shadow-[#2563EB]/50 hover:scale-[1.02]',
+    switchBtn: 'bg-[#0f2744] text-[#38BDF8] border border-[#1E3A5F] hover:bg-[#1E3A5F]',
+    tabActive: 'bg-gradient-to-r from-[#2563EB] to-[#38BDF8] text-white shadow-md',
+    tabInactive: 'text-[#38BDF8]/50 hover:text-[#38BDF8]',
+    tabBar: 'bg-[#0f2744] border border-[#1E3A5F]',
+    spinner: 'border-white/30 border-t-white',
+    orb1: 'bg-[#2563EB]/25',
+    orb2: 'bg-[#38BDF8]/15',
+    orb3: 'bg-[#0B1F3A]/40',
+    features: [
+      { icon: <Sparkles className="w-4 h-4 text-[#38BDF8]" />, text: 'AI-Powered Search' },
+      { icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />, text: 'End-to-End Encrypted' },
+      { icon: <Zap className="w-4 h-4 text-amber-400" />, text: 'Instant Answers' },
+    ],
+  };
+
+  // ─── ADMIN THEME (deep navy premium + gold/cobalt accents) ─────────────────
+  const adminTheme = {
+    bg: 'bg-[#040d18]',
+    leftPanel: 'bg-gradient-to-br from-[#040d18] via-[#071a30] to-[#040d18]',
+    rightPanel: 'bg-[#02080f]',
+    card: 'bg-[#071220]/90 border-[#1a3354]/70 shadow-[0_32px_80px_rgba(0,0,0,0.8)]',
+    label: 'text-[#4A9EDB]/80',
+    input: 'bg-[#071a2e] border border-[#1a3354] text-white focus:border-[#1D4ED8] focus:ring-4 focus:ring-[#1D4ED8]/20 placeholder-[#1D4ED8]/15',
+    icon: 'text-[#4A9EDB]/30 group-focus-within:text-[#4A9EDB]',
+    badge: 'bg-[#1D4ED8]/10 text-[#4A9EDB] border-[#1D4ED8]/20',
+    tagline: 'text-[#4A9EDB]',
+    body: 'text-[#4A9EDB]/50',
+    btn: 'bg-gradient-to-r from-[#1D4ED8] to-[#1E40AF] text-white shadow-lg shadow-[#1D4ED8]/30 hover:shadow-[#1D4ED8]/50 hover:scale-[1.02] border border-[#3B82F6]/20',
+    switchBtn: 'bg-[#071a2e] text-[#4A9EDB] border border-[#1a3354] hover:bg-[#0d2644]',
+    tabActive: '',
+    tabInactive: '',
+    tabBar: '',
+    spinner: 'border-white/20 border-t-[#4A9EDB]',
+    orb1: 'bg-[#1D4ED8]/20',
+    orb2: 'bg-[#3B82F6]/10',
+    orb3: 'bg-[#1E40AF]/15',
+    features: [
+      { icon: <Shield className="w-4 h-4 text-[#4A9EDB]" />, text: 'Full System Access' },
+      { icon: <CheckCircle2 className="w-4 h-4 text-emerald-400" />, text: 'Enterprise Grade Security' },
+      { icon: <Zap className="w-4 h-4 text-[#4A9EDB]" />, text: 'Real-time Analytics' },
+    ],
+  };
+
+  const t = isAdmin ? adminTheme : employeeTheme;
+
   return (
-    <main className={`relative min-h-screen w-full flex items-center justify-center p-4 overflow-hidden transition-colors duration-1000 ${isAdmin ? 'bg-[#050505]' : 'bg-[#0f172a]'}`}>
-      
-      {/* Dynamic Animated Background */}
+    <main className={`relative min-h-screen w-full flex items-center justify-center p-4 overflow-hidden transition-colors duration-700 ${t.bg}`}>
+
+      {/* ── Animated Background Orbs ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {isAdmin ? (
-          <>
-            {/* Admin Background: Cyber/Matrix vibe */}
-            <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:40px_40px]" />
-            <motion.div 
-              animate={{ 
-                backgroundPosition: ['0% 0%', '100% 100%'],
-                opacity: [0.3, 0.5, 0.3]
-              }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_50%)]"
-            />
-            {/* Moving scanline */}
-            <motion.div
-              animate={{ top: ['-10%', '110%'] }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/20 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.5)]"
-            />
-          </>
-        ) : (
-          <>
-            {/* Employee Background: Soft, vibrant glowing orbs */}
-            <div className="absolute inset-0 bg-[#0f172a]" />
-            <motion.div
-              animate={{ 
-                x: [0, 100, -100, 0],
-                y: [0, -100, 100, 0],
-                scale: [1, 1.2, 0.8, 1]
-              }}
-              transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px]"
-            />
-            <motion.div
-              animate={{ 
-                x: [0, -150, 150, 0],
-                y: [0, 150, -150, 0],
-                scale: [1, 0.8, 1.2, 1]
-              }}
-              transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-indigo-500/20 rounded-full blur-[120px]"
-            />
-            <motion.div
-              animate={{ 
-                scale: [1, 1.5, 1],
-                opacity: [0.3, 0.6, 0.3]
-              }}
-              transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-sky-400/10 rounded-full blur-[100px]"
-            />
-          </>
+        {/* Grid overlay */}
+        {isAdmin && (
+          <div className="absolute inset-0 opacity-[0.04] [background-image:linear-gradient(rgba(74,158,219,0.8)_1px,transparent_1px),linear-gradient(90deg,rgba(74,158,219,0.8)_1px,transparent_1px)] [background-size:48px_48px]" />
+        )}
+        <motion.div
+          animate={{ x: [0, 80, -80, 0], y: [0, -80, 80, 0], scale: [1, 1.15, 0.9, 1] }}
+          transition={{ duration: 28, repeat: Infinity, ease: 'easeInOut' }}
+          className={`absolute top-1/4 left-1/4 w-[28rem] h-[28rem] ${t.orb1} rounded-full blur-[130px]`}
+        />
+        <motion.div
+          animate={{ x: [0, -120, 120, 0], y: [0, 120, -120, 0], scale: [1, 0.85, 1.2, 1] }}
+          transition={{ duration: 35, repeat: Infinity, ease: 'easeInOut' }}
+          className={`absolute bottom-1/4 right-1/4 w-[34rem] h-[34rem] ${t.orb2} rounded-full blur-[140px]`}
+        />
+        <motion.div
+          animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0.7, 0.4] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[44rem] h-[44rem] ${t.orb3} rounded-full blur-[120px]`}
+        />
+        {isAdmin && (
+          <motion.div
+            animate={{ top: ['-5%', '105%'] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+            className="absolute left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#1D4ED8]/30 to-transparent shadow-[0_0_12px_rgba(29,78,216,0.4)]"
+          />
         )}
       </div>
 
-      {/* Main Container - Glassmorphism */}
-      <motion.div 
+      {/* ── Main Card ── */}
+      <motion.div
         layout
-        className={`relative z-10 w-full max-w-6xl flex flex-col lg:flex-row rounded-3xl overflow-hidden backdrop-blur-2xl shadow-2xl border ${
-          isAdmin 
-            ? 'bg-black/40 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]' 
-            : 'bg-white/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.37)]'
-        }`}
+        className={`relative z-10 w-full max-w-5xl flex flex-col lg:flex-row rounded-3xl overflow-hidden backdrop-blur-2xl shadow-2xl border ${t.card}`}
       >
-        {/* Left Side: Branding & Info */}
-        <div className={`hidden lg:flex w-[45%] flex-col justify-between p-12 relative overflow-hidden ${isAdmin ? 'bg-black/60' : 'bg-gradient-to-br from-blue-900/40 to-indigo-900/40'}`}>
+        {/* ── Left Panel: Branding ── */}
+        <div className={`hidden lg:flex w-[42%] flex-col justify-between p-12 relative overflow-hidden ${t.leftPanel}`}>
+          {/* subtle top-right glow */}
+          <div className={`absolute -top-20 -right-20 w-64 h-64 ${t.orb1} rounded-full blur-[80px] opacity-60`} />
+          <div className={`absolute -bottom-20 -left-20 w-48 h-48 ${t.orb2} rounded-full blur-[80px] opacity-40`} />
+
           <div className="relative z-10">
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: -16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-4 mb-16"
+              className="flex items-center gap-3 mb-14"
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-xl border ${isAdmin ? 'bg-white/5 border-white/10' : 'bg-white/20 border-white/30'} shadow-xl`}>
-                {isAdmin ? <Shield className="w-6 h-6 text-white" /> : <Sparkles className="w-6 h-6 text-white" />}
+              <div className={`w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shadow-lg border border-white/10`}>
+                <img src="/logo.png" alt="Agilo AI" className="w-full h-full object-cover rounded-lg" />
               </div>
-              <span className="text-2xl font-black tracking-tight text-white">AGILO AI</span>
+              <div>
+                <span className="text-xl font-black tracking-tight text-white block leading-none">AGILO AI</span>
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${t.tagline}`}>
+                  {isAdmin ? 'Admin Console' : 'Enterprise Assistant'}
+                </span>
+              </div>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.15 }}
             >
-              <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-[0.2em] mb-6 backdrop-blur-md border ${isAdmin ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white/20 text-white border-white/30'}`}>
+              <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.18em] mb-5 border ${t.badge}`}>
                 {isAdmin ? 'System Administration' : 'Enterprise Intelligence'}
               </span>
-              <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] tracking-tight mb-6">
-                {isAdmin ? 'Secure Access to Core Systems' : 'Your Knowledge, Amplified'}
+              <h1 className="text-4xl xl:text-[2.6rem] font-black text-white leading-[1.1] tracking-tight mb-5">
+                {isAdmin ? 'Secure System\nAccess Portal' : 'Your Knowledge,\nAmplified'}
               </h1>
-              <p className={`text-lg leading-relaxed ${isAdmin ? 'text-slate-400' : 'text-blue-100/80'}`}>
-                {isAdmin 
-                  ? 'Advanced management interface for RAG infrastructure, user access control, and vector database analytics.' 
+              <p className={`text-base leading-relaxed ${t.body}`}>
+                {isAdmin
+                  ? 'Advanced management interface for RAG infrastructure, access control, and vector database analytics.'
                   : 'Instantly retrieve, analyze, and synthesize insights from your entire corporate knowledge base.'}
               </p>
             </motion.div>
           </div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="relative z-10 flex items-center gap-6 text-sm font-semibold text-white/60"
+            transition={{ delay: 0.3 }}
+            className="relative z-10 flex flex-col gap-3"
           >
-            <span className="flex items-center gap-2"><Shield className="w-4 h-4 text-emerald-400" /> Enterprise Grade</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-sky-400" /> End-to-End Encrypted</span>
+            {t.features.map((f, i) => (
+              <div key={i} className="flex items-center gap-2.5 text-sm font-semibold text-white/50">
+                {f.icon}
+                <span>{f.text}</span>
+              </div>
+            ))}
           </motion.div>
         </div>
 
-        {/* Right Side: Login Form */}
-        <div className={`w-full lg:w-[55%] p-8 sm:p-12 lg:p-16 flex flex-col justify-center relative ${isAdmin ? 'bg-[#0a0a0a]' : 'bg-white/5'}`}>
-          <div className="w-full max-w-md mx-auto">
-            
-            {/* Mode Switcher */}
-            <div className="flex justify-end mb-12">
+        {/* ── Right Panel: Form ── */}
+        <div className={`w-full lg:w-[58%] p-8 sm:p-12 lg:p-14 flex flex-col justify-center relative ${t.rightPanel}`}>
+          {/* top-right corner glow */}
+          <div className={`absolute top-0 right-0 w-48 h-48 ${t.orb1} rounded-full blur-[90px] opacity-30 pointer-events-none`} />
+
+          <div className="w-full max-w-md mx-auto relative z-10">
+
+            {/* Switch button */}
+            <div className="flex justify-end mb-10">
               <button
-                onClick={() => setMode(isAdmin ? 'employee_login' : 'admin_login')}
-                className={`group relative overflow-hidden px-6 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
-                  isAdmin 
-                    ? 'text-white border border-white/20 hover:bg-white/10' 
-                    : 'bg-white/10 text-white border border-white/20 hover:bg-white/20'
-                }`}
+                onClick={() => { setMode(isAdmin ? 'employee_login' : 'admin_login'); setErrorMsg(null); setEmail(''); setPassword(''); }}
+                className={`px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 ${t.switchBtn}`}
               >
-                <span className="relative z-10">{isAdmin ? 'Switch to Employee' : 'Admin Login'}</span>
+                {isAdmin ? '← Employee Login' : 'Admin Login →'}
               </button>
             </div>
 
-            <div className="mb-10 text-center lg:text-left">
-              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
+            {/* Heading */}
+            <div className="mb-8 text-center lg:text-left">
+              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">
                 {mode === 'employee_login' ? 'Welcome Back' : mode === 'employee_register' ? 'Join Workspace' : 'Admin Portal'}
               </h2>
-              <p className={`text-sm ${isAdmin ? 'text-slate-400' : 'text-blue-200/60'}`}>
-                {mode === 'employee_login' ? 'Sign in to access your AI assistant.' : mode === 'employee_register' ? 'Create your employee account.' : 'Authenticate to manage the system.'}
+              <p className={`text-sm ${t.body}`}>
+                {mode === 'employee_login'
+                  ? 'Sign in to access your AI assistant.'
+                  : mode === 'employee_register'
+                  ? 'Create your employee account.'
+                  : 'Authenticate to manage the system.'}
               </p>
             </div>
 
+            {/* Sign In / Sign Up toggle (employees only) */}
             {!isAdmin && (
-              <div className="flex p-1 rounded-xl bg-white/5 border border-white/10 mb-8 backdrop-blur-md">
+              <div className={`flex p-1 rounded-xl ${t.tabBar} mb-7`}>
                 <button
                   type="button"
                   onClick={() => { setMode('employee_login'); setErrorMsg(null); }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
-                    mode === 'employee_login' ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'
-                  }`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${mode === 'employee_login' ? t.tabActive : t.tabInactive}`}
                 >
                   Sign In
                 </button>
                 <button
                   type="button"
                   onClick={() => { setMode('employee_register'); setErrorMsg(null); }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
-                    mode === 'employee_register' ? 'bg-white text-blue-900 shadow-lg' : 'text-white/60 hover:text-white'
-                  }`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${mode === 'employee_register' ? t.tabActive : t.tabInactive}`}
                 >
                   Sign Up
                 </button>
               </div>
             )}
 
+            {/* Error */}
             <AnimatePresence mode="wait">
               {errorMsg && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 flex items-center gap-3 backdrop-blur-sm"
+                  className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 flex items-center gap-3"
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
                   {errorMsg}
                 </motion.div>
               )}
             </AnimatePresence>
 
+            {/* ── Forms ── */}
             <AnimatePresence mode="wait">
               {(mode === 'employee_login' || mode === 'admin_login') ? (
                 <motion.form
@@ -251,42 +285,40 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.25 }}
                   onSubmit={handleLogin}
                   className="space-y-5"
                 >
+                  {/* Username / Email */}
                   <div className="space-y-1.5">
-                    <label className={`text-xs font-bold uppercase tracking-wider ${isAdmin ? 'text-slate-400' : 'text-blue-200/80'}`}>Username or Email</label>
+                    <label className={`text-[11px] font-bold uppercase tracking-wider ${t.label}`}>
+                      Username or Email
+                    </label>
                     <div className="relative group">
-                      <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${isAdmin ? 'text-slate-500 group-focus-within:text-white' : 'text-blue-300/50 group-focus-within:text-white'}`} />
+                      <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 transition-colors ${t.icon}`} />
                       <input
                         type="text"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-3.5 rounded-xl text-base font-medium transition-all duration-300 focus:outline-none backdrop-blur-md ${
-                          isAdmin 
-                            ? 'bg-white/5 border border-white/10 text-white focus:border-white/30 focus:bg-white/10 placeholder-slate-600' 
-                            : 'bg-white/10 border border-white/20 text-white focus:border-blue-400 focus:bg-white/20 focus:ring-4 focus:ring-blue-400/20 placeholder-blue-200/30'
-                        }`}
-                        placeholder={isAdmin ? "admin" : "you@company.com"}
+                        className={`w-full pl-11 pr-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none backdrop-blur-sm ${t.input}`}
+                        placeholder={isAdmin ? 'admin' : 'you@company.com'}
                         required
                       />
                     </div>
                   </div>
 
+                  {/* Password */}
                   <div className="space-y-1.5">
-                    <label className={`text-xs font-bold uppercase tracking-wider ${isAdmin ? 'text-slate-400' : 'text-blue-200/80'}`}>Password</label>
+                    <label className={`text-[11px] font-bold uppercase tracking-wider ${t.label}`}>
+                      Password
+                    </label>
                     <div className="relative group">
-                      <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${isAdmin ? 'text-slate-500 group-focus-within:text-white' : 'text-blue-300/50 group-focus-within:text-white'}`} />
+                      <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 transition-colors ${t.icon}`} />
                       <input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-3.5 rounded-xl text-base font-medium transition-all duration-300 focus:outline-none backdrop-blur-md ${
-                          isAdmin 
-                            ? 'bg-white/5 border border-white/10 text-white focus:border-white/30 focus:bg-white/10 placeholder-slate-600' 
-                            : 'bg-white/10 border border-white/20 text-white focus:border-blue-400 focus:bg-white/20 focus:ring-4 focus:ring-blue-400/20 placeholder-blue-200/30'
-                        }`}
+                        className={`w-full pl-11 pr-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none backdrop-blur-sm ${t.input}`}
                         placeholder="••••••••••••"
                         required
                       />
@@ -294,17 +326,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   </div>
 
                   {!isAdmin && (
-                    <div className="flex items-center justify-between text-sm pt-2">
-                      <label className="flex items-center gap-2 text-white/80 cursor-pointer hover:text-white transition-colors">
+                    <div className="flex items-center justify-between text-sm pt-1">
+                      <label className="flex items-center gap-2 text-white/60 cursor-pointer hover:text-white transition-colors">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
-                          className="rounded border-white/20 bg-white/10 text-blue-500 focus:ring-blue-500/30 w-4 h-4 transition-all"
+                          className="rounded border-white/20 bg-white/10 text-[#2563EB] focus:ring-[#2563EB]/30 w-4 h-4"
                         />
                         Remember me
                       </label>
-                      <a href="#forgot" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">
+                      <a href="#forgot" className={`font-semibold transition-colors ${isAdmin ? 'text-[#4A9EDB] hover:text-[#7EC8E3]' : 'text-[#38BDF8] hover:text-[#7EC8E3]'}`}>
                         Forgot password?
                       </a>
                     </div>
@@ -313,56 +345,53 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className={`w-full py-4 mt-4 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer group ${
-                      isAdmin 
-                        ? 'bg-white text-black hover:bg-slate-200 hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] disabled:bg-white/50' 
-                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100'
-                    }`}
+                    className={`w-full py-3.5 mt-2 rounded-xl font-bold text-sm transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-60 disabled:hover:scale-100 ${t.btn}`}
                   >
                     {isLoading ? (
-                      <div className={`w-5 h-5 border-2 rounded-full animate-spin ${isAdmin ? 'border-black/30 border-t-black' : 'border-white/30 border-t-white'}`} />
+                      <div className={`w-5 h-5 border-2 rounded-full animate-spin ${t.spinner}`} />
                     ) : (
                       <>
                         <span>{isAdmin ? 'Access System' : 'Sign In'}</span>
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                       </>
                     )}
                   </button>
                 </motion.form>
               ) : (
+                /* ── Register Form ── */
                 <motion.form
                   key="register"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.25 }}
                   onSubmit={handleRegister}
                   className="space-y-4"
                 >
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Username</label>
+                      <label className={`text-[10px] font-bold uppercase tracking-wider ${t.label}`}>Username</label>
                       <div className="relative group">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
+                        <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${t.icon}`} />
                         <input
                           type="text"
                           value={regUsername}
                           onChange={(e) => setRegUsername(e.target.value)}
-                          className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                          className={`w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all focus:outline-none ${t.input}`}
                           placeholder="johndoe"
                           required
                         />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Email</label>
+                      <label className={`text-[10px] font-bold uppercase tracking-wider ${t.label}`}>Email</label>
                       <div className="relative group">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
+                        <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${t.icon}`} />
                         <input
                           type="email"
                           value={regEmail}
                           onChange={(e) => setRegEmail(e.target.value)}
-                          className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                          className={`w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all focus:outline-none ${t.input}`}
                           placeholder="you@company.com"
                           required
                         />
@@ -371,14 +400,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Password</label>
+                    <label className={`text-[10px] font-bold uppercase tracking-wider ${t.label}`}>Password</label>
                     <div className="relative group">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
+                      <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${t.icon}`} />
                       <input
                         type="password"
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
-                        className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                        className={`w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all focus:outline-none ${t.input}`}
                         placeholder="••••••••••••"
                         required
                         minLength={6}
@@ -387,14 +416,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-blue-200/80">Confirm Password</label>
+                    <label className={`text-[10px] font-bold uppercase tracking-wider ${t.label}`}>Confirm Password</label>
                     <div className="relative group">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300/50 group-focus-within:text-white transition-colors" />
+                      <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${t.icon}`} />
                       <input
                         type="password"
                         value={regConfirm}
                         onChange={(e) => setRegConfirm(e.target.value)}
-                        className="w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all bg-white/10 border border-white/20 text-white focus:outline-none focus:border-blue-400 focus:bg-white/20 placeholder-blue-200/30"
+                        className={`w-full pl-9 pr-3 py-3 rounded-lg text-sm font-medium transition-all focus:outline-none ${t.input}`}
                         placeholder="••••••••••••"
                         required
                         minLength={6}
@@ -405,10 +434,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-3.5 mt-2 rounded-lg font-bold text-sm bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:hover:translate-y-0"
+                    className={`w-full py-3.5 mt-1 rounded-xl font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:hover:scale-100 ${t.btn}`}
                   >
                     {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className={`w-5 h-5 border-2 rounded-full animate-spin ${t.spinner}`} />
                     ) : (
                       <>
                         <span>Create Account</span>

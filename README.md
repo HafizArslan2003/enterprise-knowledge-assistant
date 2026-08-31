@@ -362,6 +362,13 @@ The RAG pipeline also implements retry handling with **exponential backoff** to 
 ## Full Documentation
 
 More detailed documentation is available in the individual project directories:
+<<<<<<< HEAD
+=======
+
+- **[backendmain/README.md](backendmain/README.md)** — Backend API reference, database model, RAG pipeline, environment variables, and known gaps.
+
+- **[frontend/agilo-ai/README.md](frontend/agilo-ai/README.md)** — Frontend component structure, authentication flow, chat flow, views, and known gaps.
+>>>>>>> 73841b9 (resolve secarchsaa)
 
 - **[backendmain/README.md](backendmain/README.md)** — Backend API reference, database model, RAG pipeline, environment variables, and known gaps.
 
@@ -385,5 +392,6 @@ The project currently focuses on:
 The architecture is designed to be extended with additional enterprise integrations, automation, and agent-based capabilities.
 
 ## License
+
 
 This project is currently intended as an enterprise prototype and internal development project.
