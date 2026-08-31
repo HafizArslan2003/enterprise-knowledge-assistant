@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Slack Integration (optional — leave blank to disable)
+    SLACK_BOT_TOKEN: str = ""
+    SLACK_APP_TOKEN: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"

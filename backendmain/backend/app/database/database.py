@@ -27,6 +27,14 @@ def create_tables():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS encrypted_gemini_api_key VARCHAR"
         ))
         connection.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_user_id VARCHAR"
+        ))
+        # Partial unique index: only one Agilo user per Slack user, but NULLs are fine
+        connection.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS users_slack_user_id_idx "
+            "ON users (slack_user_id) WHERE slack_user_id IS NOT NULL"
+        ))
+        connection.execute(text(
             "CREATE INDEX IF NOT EXISTS documents_uploaded_by_idx "
             "ON documents (uploaded_by)"
         ))

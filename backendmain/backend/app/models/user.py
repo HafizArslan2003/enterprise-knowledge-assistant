@@ -15,3 +15,4 @@ class User(Base):
     hashed_password = Column(String)
     encrypted_gemini_api_key = Column(String, nullable=True)
     role = Column(String, default="employee", nullable=False)  # "admin" or "employee"
+    slack_user_id = Column(String, nullable=True, unique=True, index=True)

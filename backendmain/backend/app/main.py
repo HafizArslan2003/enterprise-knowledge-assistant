@@ -18,6 +18,14 @@ async def lifespan(app: FastAPI):
         _get_model()
     except Exception as e:
         print(f"Warning: Failed to pre-load embedding model during startup: {e}")
+
+    # Start Slack Socket Mode in a daemon thread (only if tokens are configured)
+    try:
+        from backend.app.services.slack_service import start_slack_socket_mode
+        start_slack_socket_mode()
+    except Exception as e:
+        print(f"Warning: Slack integration failed to start: {e}")
+
     yield
 
 
