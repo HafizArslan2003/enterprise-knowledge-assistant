@@ -10,9 +10,11 @@ class Settings(BaseSettings):
     # AI / LLM Configuration
     OPENAI_API_KEY: str = ""
     QUERY_EMBEDDING_CACHE_SIZE: int = 256
-    RAG_TOP_K: int = 4               # Retrieve only top 4 chunks — avoids Groq TPM limit
-    RAG_HISTORY_TURNS: int = 4       # Keep last 4 turns of history only
-    RAG_MAX_OUTPUT_TOKENS: int = 512 # 512 keeps responses under Groq free TPM
+    RAG_TOP_K: int = 6                # 6 chunks — needed for multi-section queries (projects+risks+leads)
+    RAG_HISTORY_TURNS: int = 4        # Keep last 4 turns of history only
+    RAG_MAX_OUTPUT_TOKENS: int = 1500 # 1500 — allows full markdown tables without mid-row cutoff
+                                      # Token budget: 6×800 chars input (~1200 tokens) + 1500 output
+                                      # = ~2700 total — safely under Groq free 8000 TPM
 
     # Database Configuration
     # Note: Ensure 'password' is replaced with your actual pgAdmin master password

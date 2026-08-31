@@ -212,7 +212,14 @@ def get_grounded_response(
             print("❌ Groq returned no choices.")
             return None
 
+        finish_reason = response.choices[0].finish_reason
         content = response.choices[0].message.content
+
+        # Detect when Groq silently cuts off the answer due to token budget
+        if finish_reason == "length":
+            print(f"⚠️ WARNING: Response TRUNCATED — Groq hit max_tokens ({settings.RAG_MAX_OUTPUT_TOKENS}). "
+                  f"Answer is incomplete. Consider raising RAG_MAX_OUTPUT_TOKENS.")
+
         if not content:
             print("❌ Groq returned empty content.")
             return None

@@ -17,11 +17,32 @@ def extract_pdf_text_by_page(filepath: str) -> list[tuple[int, str]]:
 
 def extract_docx_text_by_page(filepath: str) -> list[tuple[int, str]]:
     """
-    Word documents don't have a real concept of 'pages' at the text level,
-    so we treat the whole document as a single page (page_number=1).
+    Extracts both paragraphs AND tables from a Word document.
+
+    IMPORTANT: python-docx doc.paragraphs does NOT include table cells —
+    tables are a separate doc.tables collection. Without this fix, any
+    register/matrix-style .docx (like Project_Risk_Register.docx) would
+    return only the heading text, dropping all actual table data silently.
     """
     doc = DocxDocument(filepath)
-    full_text = "\n".join([para.text for para in doc.paragraphs])
+
+    # Extract non-empty paragraphs
+    paragraph_text = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+
+    # Extract tables — critical for register/matrix documents
+    # Each row becomes a pipe-separated line for readability in chunks
+    table_parts = []
+    for table_index, table in enumerate(doc.tables, start=1):
+        table_parts.append(f"\n[Table {table_index}]")
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells]
+            if any(cells):  # skip completely empty rows
+                table_parts.append(" | ".join(cells))
+
+    full_text = paragraph_text
+    if table_parts:
+        full_text += "\n\n" + "\n".join(table_parts)
+
     return [(1, full_text)]
 
 
