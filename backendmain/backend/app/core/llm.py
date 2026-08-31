@@ -126,10 +126,6 @@ def strip_reasoning_output(content: str) -> str:
     return UNFINISHED_REASONING_PATTERN.sub("", content).strip()
 
 
-# =========================================================
-# Groq Grounded Response
-# =========================================================
-
 def get_grounded_response(
     api_key: str,
     question: str,
@@ -152,17 +148,14 @@ def get_grounded_response(
 
         messages = [{"role": "system", "content": system_prompt}]
 
-        # Keep only the last 6 turns of history — enough for continuity
-        # without letting the context balloon.
+        # Keep only the last 4 turns of history to prevent token explosion
         if history:
-            for message in history[-6:]:
+            for message in history[-4:]:
                 role = message.get("role")
                 content = message.get("content")
                 if role in ("user", "assistant") and content:
                     messages.append({"role": role, "content": content})
 
-        # Compact user turn: no repeated instructions here — the system
-        # prompt already covers behavior, so we just hand over the facts.
         user_prompt = (
             f"DOCUMENT CONTEXT:\n{context_text}\n\n"
             f"CURRENT DATE: {current_date}\n\n"
@@ -188,17 +181,34 @@ def get_grounded_response(
             max_retries=0,
         )
 
-        response = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=messages,
-            temperature=0.2,
-            max_tokens=settings.RAG_MAX_OUTPUT_TOKENS,
-        )
+        # Custom exponential backoff loop for rate limits
+        import openai
+        max_attempts = 3
+        attempt = 0
+        response = None
+        
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                response = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=messages,
+                    temperature=0.2,
+                    max_tokens=settings.RAG_MAX_OUTPUT_TOKENS,
+                )
+                break
+            except openai.RateLimitError as e:
+                print(f"⚠️ Groq RateLimitError on attempt {attempt}/{max_attempts}: {e}")
+                if attempt == max_attempts:
+                    raise  # Escalates to HTTP 429
+                time.sleep(2 ** attempt)  # Wait 2s, then 4s before retrying
+            except Exception as e:
+                raise e # Escalates to 500
 
         elapsed = time.time() - start
         print(f"⏱️ Groq time: {elapsed:.2f} seconds")
 
-        if not response.choices:
+        if not response or not response.choices:
             print("❌ Groq returned no choices.")
             return None
 
@@ -221,10 +231,19 @@ def get_grounded_response(
         return content
 
     except Exception as e:
+        import openai
+        from fastapi import HTTPException
         print("\n" + "=" * 70)
         print("❌ GROQ ERROR")
         print("=" * 70)
         print(f"❌ Error type: {type(e).__name__}")
         print(f"❌ Error: {e}")
         print("=" * 70 + "\n")
+        
+        if isinstance(e, openai.RateLimitError) or "429" in str(e):
+            raise HTTPException(
+                status_code=429, 
+                detail="The AI provider is currently rate-limited due to high traffic. Please try again in a few moments."
+            )
+        
         return None
