@@ -74,6 +74,7 @@ def _register_handlers(bolt: App) -> None:
                 .first()
             )
             if user is None:
+                print(f"⚠️ Slack user attempting to use Agilo AI but is unlinked: {slack_user_id}")
                 say(
                     text=(
                         "❌ Your Slack account is not linked to an Agilo AI account.\n"
@@ -166,6 +167,7 @@ def _register_handlers(bolt: App) -> None:
                 .first()
             )
             if user is None:
+                print(f"⚠️ Slack user attempting to DM Agilo AI but is unlinked: {slack_user_id}")
                 say(
                     text=(
                         "❌ Your Slack account is not linked to an Agilo AI account.\n"

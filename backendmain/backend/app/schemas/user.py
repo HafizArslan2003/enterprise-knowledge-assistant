@@ -25,3 +25,6 @@ class GeminiApiKeyUpdate(BaseModel):
 class GeminiApiKeyStatus(BaseModel):
     configured: bool
     masked_key: str | None = None
+
+class SlackLinkRequest(BaseModel):
+    slack_user_id: str

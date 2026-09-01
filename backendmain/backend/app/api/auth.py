@@ -5,7 +5,7 @@ from jose import jwt, JWTError
 
 from backend.app.database.dependencies import get_db
 from backend.app.models.user import User
-from backend.app.schemas.user import GeminiApiKeyStatus, GeminiApiKeyUpdate, UserCreate, UserResponse
+from backend.app.schemas.user import GeminiApiKeyStatus, GeminiApiKeyUpdate, UserCreate, UserResponse, SlackLinkRequest
 from backend.app.schemas.token import Token
 from backend.app.core.security import get_password_hash, verify_password, create_access_token, ALGORITHM
 from backend.app.core.config import settings
@@ -112,3 +112,35 @@ def save_gemini_key(
     current_user.encrypted_gemini_api_key = encrypt_api_key(api_key)
     db.commit()
     return GeminiApiKeyStatus(configured=True, masked_key=f"••••••••{api_key[-4:]}")
+
+
+@router.put("/users/{user_id}/slack-id", response_model=UserResponse)
+def link_slack_account(
+    user_id: int,
+    payload: SlackLinkRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Admin only: Link an existing Agilo user to their Slack User ID."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can link Slack accounts")
+    
+    slack_id = payload.slack_user_id.strip()
+    
+    # Slack user IDs typically start with U or W and are alphanumeric
+    if not slack_id.startswith(("U", "W")) or len(slack_id) < 5:
+        raise HTTPException(status_code=400, detail="Invalid Slack user ID format (must start with U or W)")
+        
+    # Ensure this Slack ID isn't already assigned to someone else
+    existing = db.query(User).filter(User.slack_user_id == slack_id).first()
+    if existing and existing.id != user_id:
+        raise HTTPException(status_code=400, detail=f"Slack ID {slack_id} is already linked to another user ({existing.username})")
+        
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    target_user.slack_user_id = slack_id
+    db.commit()
+    db.refresh(target_user)
+    return target_user
