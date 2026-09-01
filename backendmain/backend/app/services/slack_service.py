@@ -130,6 +130,92 @@ def _register_handlers(bolt: App) -> None:
         finally:
             db.close()
 
+    # ── DM support ─────────────────────────────────────────
+    # Requires Slack OAuth scopes: im:history, chat:write
+    # Requires Event Subscriptions: message.im
+    # ───────────────────────────────────────────────────────
+    @bolt.event("message")
+    def handle_dm(event: dict, say) -> None:
+        """
+        Fired when a user sends a direct message to the bot.
+
+        Identical flow to handle_mention — the only differences are:
+        - No @mention prefix to strip (it's already a DM)
+        - Bot's own messages are skipped (subtype == 'bot_message') to
+          prevent infinite reply loops
+        """
+        # Ignore messages sent by the bot itself
+        if event.get("subtype") == "bot_message" or event.get("bot_id"):
+            return
+
+        # DMs only — channel_type "im" confirms this is a direct message
+        if event.get("channel_type") != "im":
+            return
+
+        slack_user_id: str = event.get("user", "")
+        question: str = (event.get("text") or "").strip()
+        if not question:
+            return
+
+        db = SessionLocal()
+        try:
+            # 1. Map Slack user → Agilo user (same as app_mention)
+            user = (
+                db.query(User)
+                .filter(User.slack_user_id == slack_user_id)
+                .first()
+            )
+            if user is None:
+                say(
+                    text=(
+                        "❌ Your Slack account is not linked to an Agilo AI account.\n"
+                        "Please contact your administrator to link your Slack ID."
+                    )
+                )
+                return
+
+            # 2. Decrypt the user's stored Groq API key (same as app_mention)
+            api_key = decrypt_api_key(user.encrypted_gemini_api_key)
+            if not api_key:
+                say(
+                    text=(
+                        "⚠️ No Groq API key found for your account.\n"
+                        "Please log into Agilo AI and add your API key in Settings first."
+                    )
+                )
+                return
+
+            # 3. Acknowledge immediately
+            say(text="🔍 Searching documents…")
+
+            # 4. Call the EXISTING RAG pipeline — identical to app_mention, zero duplication
+            answer, sources, _ = answer_document_question(
+                db=db,
+                question=question,
+                user=user,
+                api_key=api_key,
+                history=[],
+                doc_filter=None,
+            )
+
+            # 5. Format reply (same as app_mention)
+            reply_parts = [answer]
+            if sources:
+                reply_parts.append("\n📎 *Sources:*")
+                for src in sources:
+                    reply_parts.append(
+                        f"  • _{src['document_name']}_ — Page {src['page_number']} "
+                        f"({src['accuracy']:.0f}% match)"
+                    )
+
+            say(text="\n".join(reply_parts))
+
+        except Exception as e:
+            print(f"❌ Slack DM handler error: {e}")
+            say(text="⚠️ Something went wrong while processing your question. Please try again.")
+        finally:
+            db.close()
+
 
 # ──────────────────────────────────────────────────────────
 # Lifecycle: start / stop
