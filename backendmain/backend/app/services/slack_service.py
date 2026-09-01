@@ -40,6 +40,21 @@ def _get_bolt_app() -> App:
 _MENTION_RE = re.compile(r"<@[\w]+>\s*")
 
 
+def _format_for_slack(text: str) -> str:
+    """
+    Converts standard Markdown to Slack's mrkdwn format.
+    - Converts **bold** to *bold*
+    - Removes unnecessary backslash escapes (e.g. \* -> *)
+    """
+    if not text:
+        return text
+    # 1. Convert Markdown bold (**text**) to Slack bold (*text*)
+    text = re.sub(r'\*\*(.*?)\*\*', r'*\1*', text)
+    # 2. Remove unnecessary backslash escapes (like \*, \_)
+    text = re.sub(r'\\([*_{}[\]()#+\-.!])', r'\1', text)
+    return text
+
+
 def _register_handlers(bolt: App) -> None:
     """Wire up event listeners on the Bolt app."""
 
@@ -111,7 +126,8 @@ def _register_handlers(bolt: App) -> None:
             )
 
             # 5. Format the answer for Slack
-            reply_parts = [answer]
+            formatted_answer = _format_for_slack(answer)
+            reply_parts = [formatted_answer]
             if sources:
                 reply_parts.append("\n📎 *Sources:*")
                 for src in sources:
@@ -201,7 +217,8 @@ def _register_handlers(bolt: App) -> None:
             )
 
             # 5. Format reply (same as app_mention)
-            reply_parts = [answer]
+            formatted_answer = _format_for_slack(answer)
+            reply_parts = [formatted_answer]
             if sources:
                 reply_parts.append("\n📎 *Sources:*")
                 for src in sources:
