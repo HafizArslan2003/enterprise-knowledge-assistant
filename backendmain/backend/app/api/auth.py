@@ -172,7 +172,10 @@ def connect_slack(current_user: User = Depends(get_current_user)):
     # Slack OAuth v2 authorization URL
     params = {
         "client_id": settings.SLACK_CLIENT_ID,
-        "scope": "users:read",  # Minimum scope to read the authenticating user's identity
+        # IMPORTANT: We MUST NOT request bot `scope` here!
+        # Requesting a bot scope triggers an App Installation flow, which conflicts
+        # with the existing single-workspace Socket Mode bot and causes the
+        # 'AuthorizeResult not found' error. We ONLY need the user's identity.
         "user_scope": "users:read",
         "redirect_uri": settings.SLACK_REDIRECT_URI,
         "state": state_token
@@ -206,26 +209,27 @@ def slack_callback(code: str, state: str, db: Session = Depends(get_db)):
     }
     
     try:
-        # We use httpx synchronously here for simplicity, or requests
-        import requests
-        response = requests.post("https://slack.com/api/oauth.v2.access", data=data)
+        # httpx is already in requirements.txt — no extra dependency needed
+        response = httpx.post("https://slack.com/api/oauth.v2.access", data=data)
         result = response.json()
         
         if not result.get("ok"):
             error_msg = result.get("error", "unknown_error")
+            print(f"Slack OAuth API error: {error_msg} | full response: {result}")
             return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error={error_msg}")
             
+        # The authorizing user's Slack ID lives inside authed_user (user-scoped token)
         slack_user_id = result.get("authed_user", {}).get("id")
         if not slack_user_id:
+            print(f"Slack OAuth: missing authed_user.id in response: {result}")
             return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=missing_identity")
             
-        # 3. Check for existing mapping
+        # 3. Check for existing mapping — prevent overwriting another user's link
         existing = db.query(User).filter(User.slack_user_id == slack_user_id).first()
         if existing and existing.id != user_id:
-            # Already linked to someone else!
             return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=already_linked")
             
-        # 4. Map it to our securely authenticated user
+        # 4. Map it to our securely authenticated user (user_id from signed JWT state)
         target_user = db.query(User).filter(User.id == user_id).first()
         if target_user:
             target_user.slack_user_id = slack_user_id
