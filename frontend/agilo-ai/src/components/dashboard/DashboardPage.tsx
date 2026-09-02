@@ -18,6 +18,8 @@ import {
   getGeminiApiKeyStatus,
   saveGeminiApiKey,
   viewDocument,
+  getSlackConnectUrl,
+  disconnectSlack,
   type ChatHistorySession,
   type DocumentUploadResponse,
   type UsageSummary,
@@ -849,9 +851,10 @@ const handleSendMessage = async (queryText: string) => {
                         <button
                           onClick={async () => {
                             try {
-                              await disconnectSlack(accessToken);
+                              const token = localStorage.getItem('agilo-access-token') || undefined;
+                              await disconnectSlack(token);
                               // Refresh user to clear slack_id from local state
-                              const updatedUser = await getCurrentUser(accessToken);
+                              const updatedUser = await getCurrentUser(token);
                               setCurrentUser(updatedUser);
                             } catch (e) {
                               console.error(e);
@@ -866,7 +869,8 @@ const handleSendMessage = async (queryText: string) => {
                       <button
                         onClick={async () => {
                           try {
-                            const data = await getSlackConnectUrl(accessToken);
+                            const token = localStorage.getItem('agilo-access-token') || undefined;
+                            const data = await getSlackConnectUrl(token);
                             window.location.href = data.url;
                           } catch (e) {
                             console.error(e);
