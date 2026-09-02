@@ -119,10 +119,8 @@ function buildFormBody(username: string, password: string) {
 }
 
 export async function authenticateUser(emailOrUsername: string, password: string) {
-  const normalizedUsername = emailOrUsername.includes('@')
-    ? emailOrUsername.split('@')[0]
-    : emailOrUsername;
-
+  // Send the identifier exactly as typed — backend supports both username AND email login.
+  // Do NOT strip the domain from email addresses.
   const data = await request<AuthResponse>(
     '/api/v1/auth/login',
     {
@@ -130,7 +128,7 @@ export async function authenticateUser(emailOrUsername: string, password: string
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: buildFormBody(normalizedUsername, password),
+      body: buildFormBody(emailOrUsername, password),
     }
   );
 
