@@ -7,6 +7,7 @@ All document permissions, redaction, and role-based filtering are preserved
 because we pass the real User object — zero RAG duplication.
 """
 
+import os
 import re
 import threading
 
@@ -31,17 +32,26 @@ def _get_bolt_app() -> App:
     """Lazily create the Bolt app so import alone never crashes."""
     global _bolt_app
     if _bolt_app is None:
-        # IMPORTANT: Pass token explicitly AND set installation_store=None.
-        # When SLACK_CLIENT_ID + SLACK_CLIENT_SECRET are present in the environment
-        # (for the separate OAuth account-linking flow in auth.py), slack-bolt
-        # automatically detects them and switches to OAuth/installation_store mode,
-        # which ignores SLACK_BOT_TOKEN and causes 'AuthorizeResult not found'.
-        # Passing `installation_store=None` forces single-workspace bot mode so
-        # the bot token is always used for Socket Mode authentication.
-        _bolt_app = App(
-            token=settings.SLACK_BOT_TOKEN,
-            installation_store=None,
-        )
+        # IMPORTANT: slack-bolt automatically enters OAuth/multi-workspace mode
+        # if it sees SLACK_CLIENT_ID and SLACK_CLIENT_SECRET in os.environ,
+        # totally ignoring our SLACK_BOT_TOKEN and causing "AuthorizeResult not found".
+        # We must temporarily hide them during App construction so Bolt runs
+        # purely as a single-workspace Socket Mode bot.
+        client_id = os.environ.pop("SLACK_CLIENT_ID", None)
+        client_secret = os.environ.pop("SLACK_CLIENT_SECRET", None)
+        try:
+            _bolt_app = App(
+                token=settings.SLACK_BOT_TOKEN,
+                # Explicitly disable installation_store to be safe
+                installation_store=None,
+            )
+        finally:
+            # Safely restore the environment variables so auth.py's OAuth continues to work!
+            if client_id is not None:
+                os.environ["SLACK_CLIENT_ID"] = client_id
+            if client_secret is not None:
+                os.environ["SLACK_CLIENT_SECRET"] = client_secret
+
         _register_handlers(_bolt_app)
     return _bolt_app
 
@@ -51,7 +61,7 @@ _MENTION_RE = re.compile(r"<@[\w]+>\s*")
 
 
 def _format_for_slack(text: str) -> str:
-    """
+    r"""
     Converts standard Markdown to Slack's mrkdwn format.
     - Converts **bold** to *bold*
     - Removes unnecessary backslash escapes (e.g. \* -> *)
