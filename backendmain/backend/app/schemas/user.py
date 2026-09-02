@@ -13,6 +13,7 @@ class UserResponse(UserBase):
     username: str
     email: EmailStr
     role: str
+    slack_user_id: str | None = None
 
     class Config:
         from_attributes = True

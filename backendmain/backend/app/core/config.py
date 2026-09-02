@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     # Slack Integration (optional — leave blank to disable)
     SLACK_BOT_TOKEN: str = ""
     SLACK_APP_TOKEN: str = ""
+    
+    # Slack OAuth for Account Linking
+    SLACK_CLIENT_ID: str = ""
+    SLACK_CLIENT_SECRET: str = ""
+    SLACK_REDIRECT_URI: str = "http://localhost:8001/api/v1/auth/slack/callback"
+    FRONTEND_URL: str = "http://localhost:8080"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -51,6 +51,7 @@ export interface UserResponse {
   username: string;
   email: string;
   role: 'admin' | 'employee';
+  slack_user_id?: string | null;
 }
 
 export interface GeminiApiKeyStatus {
@@ -156,6 +157,15 @@ export async function registerUser(username: string, email: string, password: st
 // NEW: GET /api/v1/auth/me
 export async function getCurrentUser(token?: string) {
   return request<UserResponse>('/api/v1/auth/me', { method: 'GET' }, token);
+}
+
+// SLACK OAUTH
+export async function getSlackConnectUrl(token?: string) {
+  return request<{ url: string }>('/api/v1/auth/slack/connect', { method: 'GET' }, token);
+}
+
+export async function disconnectSlack(token?: string) {
+  return request<{ status: string }>('/api/v1/auth/slack/disconnect', { method: 'DELETE' }, token);
 }
 
 export async function getGeminiApiKeyStatus(token?: string) {

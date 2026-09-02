@@ -144,3 +144,107 @@ def link_slack_account(
     db.commit()
     db.refresh(target_user)
     return target_user
+
+
+# ─── SLACK OAUTH AUTOMATIC LINKING ──────────────────────────────────────────
+
+import urllib.parse
+from datetime import datetime, timedelta
+import httpx
+from fastapi.responses import RedirectResponse
+
+@router.get("/slack/connect")
+def connect_slack(current_user: User = Depends(get_current_user)):
+    """
+    Starts the Slack OAuth flow.
+    Generates a secure, short-lived JWT state tied to the authenticated user.
+    """
+    if not settings.SLACK_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Slack OAuth is not configured on the server")
+        
+    # Create a secure state token valid for 15 minutes
+    state_payload = {
+        "user_id": current_user.id,
+        "exp": datetime.utcnow() + timedelta(minutes=15)
+    }
+    state_token = jwt.encode(state_payload, settings.SECRET_KEY, algorithm=ALGORITHM)
+    
+    # Slack OAuth v2 authorization URL
+    params = {
+        "client_id": settings.SLACK_CLIENT_ID,
+        "scope": "users:read",  # Minimum scope to read the authenticating user's identity
+        "user_scope": "users:read",
+        "redirect_uri": settings.SLACK_REDIRECT_URI,
+        "state": state_token
+    }
+    slack_oauth_url = f"https://slack.com/oauth/v2/authorize?{urllib.parse.urlencode(params)}"
+    
+    return {"url": slack_oauth_url}
+
+
+@router.get("/slack/callback")
+def slack_callback(code: str, state: str, db: Session = Depends(get_db)):
+    """
+    Handles the Slack redirect. Verifies the state, exchanges the code,
+    and maps the Slack User ID to the original Agilo user.
+    """
+    # 1. Verify the state token to prevent CSRF and guarantee identity binding
+    try:
+        payload = jwt.decode(state, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if not user_id:
+            return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=invalid_state")
+    except JWTError:
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=expired_state")
+        
+    # 2. Exchange OAuth code for Slack identity
+    data = {
+        "client_id": settings.SLACK_CLIENT_ID,
+        "client_secret": settings.SLACK_CLIENT_SECRET,
+        "code": code,
+        "redirect_uri": settings.SLACK_REDIRECT_URI
+    }
+    
+    try:
+        # We use httpx synchronously here for simplicity, or requests
+        import requests
+        response = requests.post("https://slack.com/api/oauth.v2.access", data=data)
+        result = response.json()
+        
+        if not result.get("ok"):
+            error_msg = result.get("error", "unknown_error")
+            return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error={error_msg}")
+            
+        slack_user_id = result.get("authed_user", {}).get("id")
+        if not slack_user_id:
+            return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=missing_identity")
+            
+        # 3. Check for existing mapping
+        existing = db.query(User).filter(User.slack_user_id == slack_user_id).first()
+        if existing and existing.id != user_id:
+            # Already linked to someone else!
+            return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=already_linked")
+            
+        # 4. Map it to our securely authenticated user
+        target_user = db.query(User).filter(User.id == user_id).first()
+        if target_user:
+            target_user.slack_user_id = slack_user_id
+            db.commit()
+            
+        # 5. Success redirect
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_success=true")
+        
+    except Exception as e:
+        print(f"Slack OAuth Error: {e}")
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}?slack_error=server_error")
+
+
+@router.delete("/slack/disconnect")
+def disconnect_slack(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Allows a user to unlink their own Slack account."""
+    if not current_user.slack_user_id:
+        return {"status": "already_disconnected"}
+        
+    current_user.slack_user_id = None
+    db.commit()
+    return {"status": "success"}
