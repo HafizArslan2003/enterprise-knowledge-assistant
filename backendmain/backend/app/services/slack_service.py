@@ -31,7 +31,17 @@ def _get_bolt_app() -> App:
     """Lazily create the Bolt app so import alone never crashes."""
     global _bolt_app
     if _bolt_app is None:
-        _bolt_app = App(token=settings.SLACK_BOT_TOKEN)
+        # IMPORTANT: Pass token explicitly AND set installation_store=None.
+        # When SLACK_CLIENT_ID + SLACK_CLIENT_SECRET are present in the environment
+        # (for the separate OAuth account-linking flow in auth.py), slack-bolt
+        # automatically detects them and switches to OAuth/installation_store mode,
+        # which ignores SLACK_BOT_TOKEN and causes 'AuthorizeResult not found'.
+        # Passing `installation_store=None` forces single-workspace bot mode so
+        # the bot token is always used for Socket Mode authentication.
+        _bolt_app = App(
+            token=settings.SLACK_BOT_TOKEN,
+            installation_store=None,
+        )
         _register_handlers(_bolt_app)
     return _bolt_app
 
